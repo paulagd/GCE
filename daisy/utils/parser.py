@@ -10,42 +10,42 @@ def parse_args():
                         help='pair-wise or point-wise')
     parser.add_argument('--algo_name', 
                         type=str, 
-                        default='vae', 
+                        default='fm',
                         help='algorithm to choose')
     parser.add_argument('--dataset', 
                         type=str, 
-                        default='ml-100k', 
+                        default='ml-1m',
                         help='select dataset')
     parser.add_argument('--prepro', 
                         type=str, 
-                        default='10core', 
+                        default='20filter',
                         help='dataset preprocess op.: origin/Ncore')
     parser.add_argument('--topk', 
                         type=int, 
-                        default=50, 
+                        default=10,
                         help='top number of recommend list')
     parser.add_argument('--test_method', 
                         type=str, 
-                        default='tfo', 
+                        default='tloo',
                         help='method for split test,options: ufo/loo/fo/tfo/tloo')
     parser.add_argument('--val_method', 
                         type=str, 
-                        default='tfo', 
+                        default='tloo',
                         help='validation method, options: cv, tfo, loo, tloo')
     parser.add_argument('--test_size', 
                         type=float, 
-                        default=.2, 
+                        default=0.2,
                         help='split ratio for test set')
     parser.add_argument('--val_size', 
                         type=float, 
-                        default=.1, help='split ratio for validation set')
+                        default=0, help='split ratio for validation set')
     parser.add_argument('--fold_num', 
                         type=int, 
                         default=5, 
                         help='No. of folds for cross-validation')
     parser.add_argument('--cand_num', 
                         type=int, 
-                        default=1000, 
+                        default=99,
                         help='No. of candidates item for predict')
     parser.add_argument('--sample_method', 
                         type=str, 
@@ -65,12 +65,16 @@ def parse_args():
                         help='gpu card ID')
     parser.add_argument('--num_ng', 
                         type=int, 
-                        default=0, 
+                        default=4,
                         help='negative sampling number')
     parser.add_argument('--loss_type', 
                         type=str, 
                         default='CL', 
                         help='loss function type')
+    parser.add_argument('--optimizer',
+                        type=str,
+                        default='adam',
+                        help='type of optimizer: SGD /adam')
     # algo settings
     parser.add_argument('--factors', 
                         type=int, 
@@ -78,31 +82,34 @@ def parse_args():
                         help='latent factors numbers in the model')
     parser.add_argument('--reg_1', 
                         type=float, 
-                        default=0.001, 
+                        # default=0.001,
+                        default=0,
                         help='L1 regularization')
     parser.add_argument('--reg_2', 
                         type=float, 
-                        default=0.001, 
+                        # default=0.001,
+                        default=0,
                         help='L2 regularization')
     parser.add_argument('--dropout', 
                         type=float, 
-                        default=0.5, 
+                        default=0,
+                        # default=0.5,
                         help='dropout rate')
     parser.add_argument('--lr', 
                         type=float, 
-                        default=0.001, 
+                        default=0.001,
                         help='learning rate')
     parser.add_argument('--epochs', 
                         type=int, 
-                        default=20, 
+                        default=100,
                         help='training epochs')
-    parser.add_argument('--batch_size', 
+    parser.add_argument('--batch_size',
                         type=int, 
-                        default=128, 
+                        default=256,
                         help='batch size for training')
     parser.add_argument('--num_layers', 
                         type=int, 
-                        default=2, 
+                        default=1,
                         help='number of layers in MLP model')
     parser.add_argument('--act_func', 
                         type=str, 

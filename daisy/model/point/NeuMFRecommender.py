@@ -15,7 +15,8 @@ class PointNeuMF(nn.Module):
                  num_layers, 
                  q, 
                  lr, 
-                 epochs, 
+                 epochs,
+                 optimizer='adam',
                  reg_1=0.001,
                  reg_2=0.001, 
                  loss_type='CL', 
@@ -52,6 +53,7 @@ class PointNeuMF(nn.Module):
         self.epochs = epochs
         self.reg_1 = reg_1
         self.reg_2 = reg_2
+        self.optimizer = optimizer
 
         self.dropout = q
         self.model = model_name

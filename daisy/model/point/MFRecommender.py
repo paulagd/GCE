@@ -11,7 +11,8 @@ class PointMF(nn.Module):
     def __init__(self, 
                  user_num, 
                  item_num, 
-                 factors=100, 
+                 factors=100,
+                 optimizer='adam',
                  epochs=20, 
                  lr=0.01, 
                  reg_1=0.001,
@@ -43,6 +44,7 @@ class PointMF(nn.Module):
         self.reg_1 = reg_1
         self.reg_2 = reg_2
         self.epochs = epochs
+        self.optimizer = optimizer
 
         self.embed_user = nn.Embedding(user_num, factors)
         self.embed_item = nn.Embedding(item_num, factors)
@@ -67,7 +69,13 @@ class PointMF(nn.Module):
         else:
             self.cpu()
 
-        optimizer = optim.SGD(self.parameters(), lr=self.lr)
+        if self.optimizer == 'adam':
+            optimizer = optim.Adam(self.parameters(), lr=self.lr)
+
+        elif self.optimizer == 'SGD':
+            optimizer = optim.SGD(self.parameters(), lr=self.lr)
+        else:
+            raise ValueError(f'Invalid OPTIMIZER : {self.loss_type}')
 
         if self.loss_type == 'CL':
             criterion = nn.BCEWithLogitsLoss(reduction='sum')

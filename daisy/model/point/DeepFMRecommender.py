@@ -22,7 +22,8 @@ class PointDeepFM(nn.Module):
                  lr, 
                  reg_1=0.,
                  reg_2=0.,
-                 loss_type='CL', 
+                 loss_type='CL',
+                 optimizer='adam',
                  gpuid='0', 
                  early_stop=True):
         """
@@ -59,6 +60,7 @@ class PointDeepFM(nn.Module):
         self.reg_2 = reg_2
         self.loss_type = loss_type
         self.early_stop = early_stop
+        self.optimizer = optimizer
 
         self.embed_user = nn.Embedding(user_num, factors)
         self.embed_item = nn.Embedding(item_num, factors)
@@ -135,7 +137,14 @@ class PointDeepFM(nn.Module):
         else:
             self.cpu()
 
-        optimizer = optim.SGD(self.parameters(), lr=self.lr)
+        if self.optimizer == 'adam':
+            optimizer = optim.Adam(self.parameters(), lr=self.lr)
+
+        elif self.optimizer == 'SGD':
+            optimizer = optim.SGD(self.parameters(), lr=self.lr)
+        else:
+            raise ValueError(f'Invalid OPTIMIZER : {self.loss_type}')
+
         if self.loss_type == 'CL':
             criterion = nn.BCEWithLogitsLoss(reduction='sum')
         elif self.loss_type == 'SL':

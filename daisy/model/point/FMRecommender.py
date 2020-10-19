@@ -8,12 +8,14 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 
+
 class PointFM(nn.Module):
     def __init__(self, 
                  user_num, 
                  item_num, 
                  factors=84, 
-                 epochs=20, 
+                 epochs=20,
+                 optimizer='adam',
                  lr=0.001,
                  reg_1 = 0.001,
                  reg_2 = 0.001,
@@ -42,6 +44,7 @@ class PointFM(nn.Module):
 
         self.epochs = epochs
         self.lr = lr
+        self.optimizer = optimizer
         self.reg_1 = reg_1
         self.reg_2 = reg_2
 
@@ -77,7 +80,13 @@ class PointFM(nn.Module):
         else:
             self.cpu()
 
-        optimizer = optim.SGD(self.parameters(), lr=self.lr)
+        if self.optimizer == 'adam':
+            optimizer = optim.Adam(self.parameters(), lr=self.lr)
+
+        elif self.optimizer == 'SGD':
+            optimizer = optim.SGD(self.parameters(), lr=self.lr)
+        else:
+            raise ValueError(f'Invalid OPTIMIZER : {self.loss_type}')
 
         if self.loss_type == 'CL':
             criterion = nn.BCEWithLogitsLoss(reduction='sum')

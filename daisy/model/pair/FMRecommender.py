@@ -72,7 +72,7 @@ class PairFM(nn.Module):
 
         # add bias
         pred_i += self.u_bias(u) + self.i_bias(i) + self.bias_
-        pred_j +=  self.u_bias(u) + self.i_bias(j) + self.bias_
+        pred_j += self.u_bias(u) + self.i_bias(j) + self.bias_
 
         return pred_i.view(-1), pred_j.view(-1)
 

@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 
+
 class PointNFM(nn.Module):
     def __init__(self,
                  user_num, 
@@ -16,7 +17,8 @@ class PointNFM(nn.Module):
                  batch_norm,
                  q, 
                  epochs, 
-                 lr, 
+                 lr,
+                 optimizer='adam',
                  reg_1=0., 
                  reg_2=0., 
                  loss_type='CL', 
@@ -48,6 +50,7 @@ class PointNFM(nn.Module):
         self.num_layers = num_layers
         self.batch_norm = batch_norm
         self.dropout = q
+        self.optimizer = optimizer
 
         self.lr = lr
         self.reg_1 = reg_1
@@ -131,7 +134,14 @@ class PointNFM(nn.Module):
         else:
             self.cpu()
 
-        optimizer = optim.SGD(self.parameters(), lr=self.lr)
+        if self.optimizer == 'adam':
+            optimizer = optim.Adam(self.parameters(), lr=self.lr)
+
+        elif self.optimizer == 'SGD':
+            optimizer = optim.SGD(self.parameters(), lr=self.lr)
+        else:
+            raise ValueError(f'Invalid OPTIMIZER : {self.loss_type}')
+
         if self.loss_type == 'CL':
             criterion = nn.BCEWithLogitsLoss(reduction='sum')
         elif self.loss_type == 'SL':
