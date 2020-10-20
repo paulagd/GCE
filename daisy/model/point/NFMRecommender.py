@@ -22,7 +22,8 @@ class PointNFM(nn.Module):
                  reg_1=0., 
                  reg_2=0., 
                  loss_type='CL', 
-                 gpuid='0', 
+                 gpuid='0',
+                 reindex = False,
                  early_stop=True):
         """
         Point-wise NFM Recommender Class

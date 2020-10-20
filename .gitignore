@@ -18,6 +18,7 @@ develop-eggs/
 dist/
 downloads/
 data/ml-1m/*
+outputs/*
 eggs/
 .eggs/
 lib/

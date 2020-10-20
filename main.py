@@ -1,6 +1,5 @@
 import os
 import time
-import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -12,20 +11,39 @@ import torch.utils.data as data
 from daisy.utils.sampler import Sampler
 from daisy.utils.parser import parse_args
 from daisy.utils.splitter import split_test
-from daisy.utils.data import PointData, PairData, UAEData
+from daisy.utils.data import PointData, PairData, UAEData, sparse_mx_to_torch_sparse_tensor
 from daisy.utils.loader import load_rate, get_ur, convert_npy_mat, build_candidates_set
 from daisy.utils.metrics import precision_at_k, recall_at_k, map_at_k, hr_at_k, ndcg_at_k, mrr_at_k
+
+from torch_geometric.utils import from_scipy_sparse_matrix
+from scipy.sparse import identity
+from IPython import embed
 
 
 if __name__ == '__main__':
     ''' all parameter part '''
     args = parse_args()
 
+    # FIX SEED AND SELECT DEVICE
+    seed = 1234
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        device = "cuda"
+    else:
+        device = "cpu"
+
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    device = torch.device(device)
+
     # store running time in time_log file
     time_log = open('time_log.txt', 'a') 
     
     ''' Test Process for Metrics Exporting '''
     df, user_num, item_num = load_rate(args.dataset, args.prepro, binary=False)
+    if args.reindex:
+        df['item'] = df['item'] + user_num
+
     train_set, test_set = split_test(df, args.test_method, args.test_size)
     # temporary used for tuning test result
     # train_set = pd.read_csv(f'./experiment_data/train_{args.dataset}_{args.prepro}_{args.test_method}.dat')
@@ -44,7 +62,7 @@ if __name__ == '__main__':
     test_ur = get_ur(test_set)
     total_train_ur = get_ur(train_set)
     # initial candidate item pool
-    item_pool = set(range(item_num))
+    item_pool = set(range(user_num, item_num+user_num)) if args.reindex else set(range(item_num))
     candidates_num = args.cand_num
 
     print('='*50, '\n')
@@ -55,9 +73,15 @@ if __name__ == '__main__':
         item_num, 
         num_ng=args.num_ng, 
         sample_method=args.sample_method, 
-        sample_ratio=args.sample_ratio
+        sample_ratio=args.sample_ratio,
+        reindex=args.reindex
     )
-    neg_set = sampler.transform(train_set, is_training=True)
+    neg_set, adj_mx = sampler.transform(train_set, is_training=True)
+    if args.gce:
+        X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
+        # We retrieve the graph's edges and send both them and graph to device in the next two lines
+        edge_idx, edge_attr = from_scipy_sparse_matrix(adj_mx)
+        edge_idx = edge_idx.to(device)
 
     if args.algo_name in ['cdae', 'vae']:
         train_dataset = UAEData(user_num, item_num, train_set, test_set)
@@ -68,6 +92,9 @@ if __name__ == '__main__':
         else:
             train_dataset = PointData(neg_set, is_training=True)
 
+    # if args.algo_name == 'mostpop':
+    #     from daisy.model.PopRecommender import MostPop
+    #     model = MostPop(n=100)
     if args.problem_type == 'point':
         if args.algo_name == 'mf':
             from daisy.model.point.MFRecommender import PointMF
@@ -81,6 +108,9 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'fm':
@@ -95,6 +125,9 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'neumf':
@@ -111,6 +144,7 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                reindex=args.reindex,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'nfm':
@@ -129,6 +163,7 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                reindex=args.reindex,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'deepfm':
@@ -137,6 +172,7 @@ if __name__ == '__main__':
                 user_num,
                 item_num,
                 factors=args.factors,
+                act_activation=args.act_func,
                 optimizer=args.optimizer,
                 num_layers=args.num_layers,
                 batch_norm=args.no_batch_norm,
@@ -146,7 +182,7 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
-                gpuid=args.gpu
+                gpuid=args.gpu,
             )
         elif args.algo_name == 'cdae':
             from daisy.model.CDAERecommender import CDAE
@@ -161,7 +197,7 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
-                gpuid=args.gpu
+                gpuid=args.gpu,
             )
         elif args.algo_name == 'vae':
             from daisy.model.VAERecommender import VAE
@@ -241,11 +277,14 @@ if __name__ == '__main__':
     else:
         raise ValueError('Invalid problem type')
 
+    # if args.algo_name == 'mostpop':
+    #     train_loader = train_dataset
+    #     args.num_workers = 0
     train_loader = data.DataLoader(
-        train_dataset, 
-        batch_size=args.batch_size, 
-        shuffle=True, 
-        num_workers=4
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers
     )
 
     # build recommender model
@@ -288,12 +327,8 @@ if __name__ == '__main__':
             # get top-N list with torch method 
             for items in tmp_loader:
                 user_u, item_i = items[0], items[1]
-                if torch.cuda.is_available():
-                    user_u = user_u.cuda()
-                    item_i = item_i.cuda()
-                else:
-                    user_u = user_u.cpu()
-                    item_i = item_i.cpu()
+                user_u = user_u.to(device)
+                item_i = item_i.to(device)
 
                 prediction = model.predict(user_u, item_i)
                 _, indices = torch.topk(prediction, args.topk)

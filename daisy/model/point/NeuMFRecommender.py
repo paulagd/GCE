@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+from IPython import embed
+from daisy.model.GCE.gce import GCE
 
 
 class PointNeuMF(nn.Module):
@@ -21,9 +23,11 @@ class PointNeuMF(nn.Module):
                  reg_2=0.001, 
                  loss_type='CL', 
                  model_name='NeuMF-end',
-                 GMF_model=None, 
-                 MLP_model=None, 
-                 gpuid='0', 
+                 GMF_model=None,  # generalized matrix factorization
+                 MLP_model=None,  # models the interactions from two pathways instead of simple inner products
+                 gpuid='0',
+                 reindex=False,
+                 GCE_flag=False,
                  early_stop=True):
         """
         Point-wise NeuMF Recommender Class
@@ -59,12 +63,19 @@ class PointNeuMF(nn.Module):
         self.model = model_name
         self.GMF_model = GMF_model
         self.MLP_model = MLP_model
+        self.reindex = reindex
+        self.GCE_flag = GCE_flag
 
-        self.embed_user_GMF = nn.Embedding(user_num, factors)
-        self.embed_item_GMF = nn.Embedding(item_num, factors)
+        if reindex:
+            self.embed_GMF = nn.Embedding(user_num + item_num, factors)
+            self.embed_MLP = nn.Embedding(user_num + item_num, factors * (2 ** (num_layers - 1)))
 
-        self.embed_user_MLP = nn.Embedding(user_num, factors * (2 ** (num_layers - 1)))
-        self.embed_item_MLP = nn.Embedding(item_num, factors * (2 ** (num_layers - 1)))
+        else:
+            self.embed_user_GMF = nn.Embedding(user_num, factors)
+            self.embed_item_GMF = nn.Embedding(item_num, factors)
+
+            self.embed_user_MLP = nn.Embedding(user_num, factors * (2 ** (num_layers - 1)))
+            self.embed_item_MLP = nn.Embedding(item_num, factors * (2 ** (num_layers - 1)))
 
         MLP_modules = []
         for i in range(num_layers):
@@ -89,10 +100,15 @@ class PointNeuMF(nn.Module):
     def _init_weight_(self):
         '''weights initialization'''
         if not self.model == 'NeuMF-pre':
-            nn.init.normal_(self.embed_user_GMF.weight, std=0.01)
-            nn.init.normal_(self.embed_item_GMF.weight, std=0.01)
-            nn.init.normal_(self.embed_user_MLP.weight, std=0.01)
-            nn.init.normal_(self.embed_item_MLP.weight, std=0.01)
+            print(f'MODEL NEUMF == {self.model}')
+            if self.reindex:
+                nn.init.normal_(self.embed_GMF.weight, std=0.01)
+                nn.init.normal_(self.embed_MLP.weight, std=0.01)
+            else:
+                nn.init.normal_(self.embed_user_GMF.weight, std=0.01)
+                nn.init.normal_(self.embed_item_GMF.weight, std=0.01)
+                nn.init.normal_(self.embed_user_MLP.weight, std=0.01)
+                nn.init.normal_(self.embed_item_MLP.weight, std=0.01)
 
             for m in self.MLP_layers:
                 if isinstance(m, nn.Linear):
@@ -125,10 +141,12 @@ class PointNeuMF(nn.Module):
             self.predict_layer.weight.data.copy_(0.5 * predict_bias)
 
     def forward(self, user, item):
+        
         if not self.model == 'MLP':
             embed_user_GMF = self.embed_user_GMF(user)
             embed_item_GMF = self.embed_item_GMF(item)
             output_GMF = embed_user_GMF * embed_item_GMF
+
         if not self.model == 'GMF':
             embed_user_MLP = self.embed_user_MLP(user)
             embed_item_MLP = self.embed_item_MLP(item)
@@ -140,6 +158,7 @@ class PointNeuMF(nn.Module):
         elif self.model == 'MLP':
             concat = output_MLP
         else:
+            # embed()
             concat = torch.cat((output_GMF, output_MLP), -1)
 
         prediction = self.predict_layer(concat)
@@ -185,12 +204,15 @@ class PointNeuMF(nn.Module):
                 self.zero_grad()
                 prediction = self.forward(user, item)
                 loss = criterion(prediction, label)
+                if self.reindex:
+                    # TODO: implement regularization for reindexed items
+                    pass
+                else:
+                    loss += self.reg_1 * (self.embed_item_GMF.weight.norm(p=1) + self.embed_user_GMF.weight.norm(p=1))
+                    loss += self.reg_1 * (self.embed_item_MLP.weight.norm(p=1) + self.embed_user_MLP.weight.norm(p=1))
 
-                loss += self.reg_1 * (self.embed_item_GMF.weight.norm(p=1) + self.embed_user_GMF.weight.norm(p=1))
-                loss += self.reg_1 * (self.embed_item_MLP.weight.norm(p=1) + self.embed_user_MLP.weight.norm(p=1))
-
-                loss += self.reg_2 * (self.embed_item_GMF.weight.norm() + self.embed_user_GMF.weight.norm())
-                loss += self.reg_2 * (self.embed_item_MLP.weight.norm() + self.embed_user_MLP.weight.norm())
+                    loss += self.reg_2 * (self.embed_item_GMF.weight.norm() + self.embed_user_GMF.weight.norm())
+                    loss += self.reg_2 * (self.embed_item_MLP.weight.norm() + self.embed_user_MLP.weight.norm())
 
                 if torch.isnan(loss):
                     raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')

@@ -8,6 +8,7 @@ import pandas as pd
 import scipy.io as sio
 
 from collections import defaultdict
+from IPython import embed
 
 
 def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui'):

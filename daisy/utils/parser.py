@@ -4,17 +4,25 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser(description='test recommender')
     # common settings
+    parser.add_argument('--reindex',
+                        action='store_false',
+                        default=True,
+                        help='activate if do not want to reindex items')
+    parser.add_argument('--gce',
+                        action='store_true',
+                        default=False,
+                        help='activate to use GCE layer instead of current embbedding layer')
     parser.add_argument('--problem_type', 
                         type=str, 
                         default='point', 
                         help='pair-wise or point-wise')
     parser.add_argument('--algo_name', 
                         type=str, 
-                        default='fm',
+                        default='mf',
                         help='algorithm to choose')
     parser.add_argument('--dataset', 
                         type=str, 
-                        default='ml-1m',
+                        default='ml-100k',
                         help='select dataset')
     parser.add_argument('--prepro', 
                         type=str, 
@@ -101,8 +109,12 @@ def parse_args():
                         help='learning rate')
     parser.add_argument('--epochs', 
                         type=int, 
-                        default=100,
+                        default=200,
                         help='training epochs')
+    parser.add_argument("--num_workers",
+                        type=int,
+                        default=16,
+                        help='num_workers')
     parser.add_argument('--batch_size',
                         type=int, 
                         default=256,
@@ -123,6 +135,7 @@ def parse_args():
                         action='store_false', 
                         default=True, 
                         help='whether do batch normalization in interior layers')
+
     args = parser.parse_args()
 
     return args

@@ -1,3 +1,6 @@
+from IPython import embed
+
+
 class MostPop(object):
     def __init__(self, n=400):
         """

@@ -114,7 +114,7 @@ class PointDeepFM(nn.Module):
         embed_item = self.embed_item(item)
 
         fm = embed_user * embed_item
-        fm = self.FM_layers(fm)
+        fm = self.fm_layers(fm)
         y_fm = fm.sum(dim=-1)
 
         y_fm = y_fm + self.u_bias(user) + self.i_bias(item) + self.bias_

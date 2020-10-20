@@ -7,6 +7,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+from IPython import embed
+from daisy.model.GCE.gce import GCE
 
 
 class PointFM(nn.Module):
@@ -17,10 +19,14 @@ class PointFM(nn.Module):
                  epochs=20,
                  optimizer='adam',
                  lr=0.001,
-                 reg_1 = 0.001,
-                 reg_2 = 0.001,
+                 reg_1=0.001,
+                 reg_2=0.001,
                  loss_type='SL',
-                 gpuid='0', 
+                 gpuid='0',
+                 reindex=False,
+                 X=None,
+                 A=None,
+                 GCE_flag=False,
                  early_stop=True):
         """
         Point-wise FM Recommender Class
@@ -48,31 +54,53 @@ class PointFM(nn.Module):
         self.reg_1 = reg_1
         self.reg_2 = reg_2
 
-        self.embed_user = nn.Embedding(user_num, factors)
-        self.embed_item = nn.Embedding(item_num, factors)
+        self.reindex = reindex
+        self.GCE_flag = GCE_flag
 
-        self.u_bias = nn.Embedding(user_num, 1)
-        self.i_bias = nn.Embedding(item_num, 1)
+        if reindex:
+            if GCE_flag:
+                self.embeddings = GCE(user_num + item_num, factors, X, A)
+            else:
+                self.embeddings = nn.Embedding(user_num + item_num, factors)
+                self.bias = nn.Embedding(user_num + item_num, 1)
+                self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
-        self.bias_ = nn.Parameter(torch.tensor([0.0]))
+                nn.init.normal_(self.embeddings.weight, std=0.01)
+                nn.init.constant_(self.bias.weight, 0.0)
+        else:
+            self.embed_user = nn.Embedding(user_num, factors)
+            self.embed_item = nn.Embedding(item_num, factors)
 
-        # init weight
-        nn.init.normal_(self.embed_user.weight, std=0.01)
-        nn.init.normal_(self.embed_item.weight, std=0.01)
-        nn.init.constant_(self.u_bias.weight, 0.0)
-        nn.init.constant_(self.i_bias.weight, 0.0)
+            self.u_bias = nn.Embedding(user_num, 1)
+            self.i_bias = nn.Embedding(item_num, 1)
+
+            self.bias_ = nn.Parameter(torch.tensor([0.0]))
+
+            # init weight
+            nn.init.normal_(self.embed_user.weight, std=0.01)
+            nn.init.normal_(self.embed_item.weight, std=0.01)
+            nn.init.constant_(self.u_bias.weight, 0.0)
+            nn.init.constant_(self.i_bias.weight, 0.0)
 
         self.loss_type = loss_type
         self.early_stop = early_stop
 
     def forward(self, user, item):
-        embed_user = self.embed_user(user)
-        embed_item = self.embed_item(item)
 
-        pred = (embed_user * embed_item).sum(dim=-1, keepdim=True)
-        pred += self.u_bias(user) + self.i_bias(item) + self.bias_
+        if self.reindex:
+            embeddings = self.embeddings(torch.stack((user, item), dim=1))
+            ix = torch.bmm(embeddings[:, :1, :], embeddings[:, 1:, :].permute(0, 2, 1))
+            ix += self.bias(torch.stack((user, item), dim=1)).sum() + self.bias_
+            # return torch.squeeze(ix)
+            return ix.view(-1)
+        else:
+            embed_user = self.embed_user(user)
+            embed_item = self.embed_item(item)
 
-        return pred.view(-1)
+            pred = (embed_user * embed_item).sum(dim=-1, keepdim=True)
+            pred += self.u_bias(user) + self.i_bias(item) + self.bias_
+
+            return pred.view(-1)
 
     def fit(self, train_loader):
         if torch.cuda.is_available():
@@ -117,8 +145,12 @@ class PointFM(nn.Module):
                 prediction = self.forward(user, item)
 
                 loss = criterion(prediction, label)
-                loss += self.reg_1 * (self.embed_item.weight.norm(p=1) +self.embed_user.weight.norm(p=1))
-                loss += self.reg_2 * (self.embed_item.weight.norm() +self.embed_user.weight.norm())
+                if self.reindex:
+                    # TODO: IMPLEMEMNT REGULARIZATIONS
+                    pass
+                else:
+                    loss += self.reg_1 * (self.embed_item.weight.norm(p=1) +self.embed_user.weight.norm(p=1))
+                    loss += self.reg_2 * (self.embed_item.weight.norm() +self.embed_user.weight.norm())
 
                 if torch.isnan(loss):
                     raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')

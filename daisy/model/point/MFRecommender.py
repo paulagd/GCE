@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+from IPython import embed
+from daisy.model.GCE.gce import GCE
 
 
 class PointMF(nn.Module):
@@ -19,6 +21,10 @@ class PointMF(nn.Module):
                  reg_2=0.001,
                  loss_type='CL', 
                  gpuid='0',
+                 X = None,
+                 A = None,
+                 reindex=False,
+                 GCE_flag=False,
                  early_stop=True):
         """
         Point-wise MF Recommender Class
@@ -45,23 +51,36 @@ class PointMF(nn.Module):
         self.reg_2 = reg_2
         self.epochs = epochs
         self.optimizer = optimizer
+        self.reindex = reindex
+        self.GCE_flag = GCE_flag
 
-        self.embed_user = nn.Embedding(user_num, factors)
-        self.embed_item = nn.Embedding(item_num, factors)
-
-        nn.init.normal_(self.embed_user.weight, std=0.01)
-        nn.init.normal_(self.embed_item.weight, std=0.01)
+        if GCE_flag:
+            self.embeddings = GCE(user_num + item_num, factors, X, A) if reindex else ValueError(f'Can not use GCE with'
+                                                                                                 f'reindex=False')
+        else:
+            if reindex:
+                self.embeddings = nn.Embedding(user_num + item_num, factors)
+                nn.init.normal_(self.embeddings.weight, std=0.01)
+            else:
+                self.embed_user = nn.Embedding(user_num, factors)
+                self.embed_item = nn.Embedding(item_num, factors)
+                nn.init.normal_(self.embed_user.weight, std=0.01)
+                nn.init.normal_(self.embed_item.weight, std=0.01)
 
         self.loss_type = loss_type
         self.early_stop = early_stop
 
     def forward(self, user, item):
-        embed_user = self.embed_user(user)
-        embed_item = self.embed_item(item)
 
-        pred = (embed_user * embed_item).sum(dim=-1)
-
-        return pred
+        if self.reindex:
+            embeddings = self.embeddings(torch.stack((user, item), dim=1))
+            ix = torch.bmm(embeddings[:, :1, :], embeddings[:, 1:, :].permute(0, 2, 1))
+            return torch.squeeze(ix)
+        else:
+            embed_user = self.embed_user(user)
+            embed_item = self.embed_item(item)
+            pred = (embed_user * embed_item).sum(dim=-1)
+            return pred
 
     def fit(self, train_loader):
         if torch.cuda.is_available():
@@ -92,6 +111,7 @@ class PointMF(nn.Module):
             # set process bar display
             pbar = tqdm(train_loader)
             pbar.set_description(f'[Epoch {epoch:03d}]')
+
             for user, item, label in pbar:
                 if torch.cuda.is_available():
                     user = user.cuda()
@@ -106,9 +126,9 @@ class PointMF(nn.Module):
                 prediction = self.forward(user, item)
 
                 loss = criterion(prediction, label)
-                loss += self.reg_1 * (self.embed_item.weight.norm(p=1) + self.embed_user.weight.norm(p=1))
-                loss += self.reg_2 * (self.embed_item.weight.norm() + self.embed_user.weight.norm())
-
+                # # TODO: implement REGULARIZATIONS for reindexed items
+                # loss += self.reg_1 * (self.embed_item.weight.norm(p=1) + self.embed_user.weight.norm(p=1))
+                # loss += self.reg_2 * (self.embed_item.weight.norm() + self.embed_user.weight.norm())
                 if torch.isnan(loss):
                     raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')
 

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 import torch.utils.data as data
+import torch
 
 
 class PointData(data.Dataset):
@@ -290,3 +291,17 @@ def item2vec_data(train_set, test_set, window, item_num, batch_size, ss_t=1e-5, 
     data_loader = data.DataLoader(data_set, batch_size=batch_size, shuffle=True) 
 
     return data_loader, vocab_size, pre.item2idx
+
+
+def sparse_mx_to_torch_sparse_tensor(sparse_mx):
+    """
+    Convert a scipy sparse matrix to a torch sparse tensor.
+    :param sparse_mx: Scipy sparse matrix.
+    :return: Torch sparse tensor.
+    """
+    sparse_mx = sparse_mx.tocoo().astype(np.float32)
+    indices = torch.from_numpy(
+        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
+    values = torch.from_numpy(sparse_mx.data)
+    shape = torch.Size(sparse_mx.shape)
+    return torch.sparse.FloatTensor(indices, values, shape)
