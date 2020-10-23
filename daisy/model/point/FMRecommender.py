@@ -59,6 +59,7 @@ class PointFM(nn.Module):
 
         if reindex:
             if GCE_flag:
+                print('GCE EMBEDDINGS DEFINED')
                 self.embeddings = GCE(user_num + item_num, factors, X, A)
             else:
                 self.embeddings = nn.Embedding(user_num + item_num, factors)
@@ -83,16 +84,17 @@ class PointFM(nn.Module):
             nn.init.constant_(self.i_bias.weight, 0.0)
 
         self.loss_type = loss_type
-        self.early_stop = early_stop
 
     def forward(self, user, item):
 
         if self.reindex:
             embeddings = self.embeddings(torch.stack((user, item), dim=1))
-            ix = torch.bmm(embeddings[:, :1, :], embeddings[:, 1:, :].permute(0, 2, 1))
-            ix += self.bias(torch.stack((user, item), dim=1)).sum() + self.bias_
+            pred = embeddings.prod(dim=1).sum(dim=1, keepdim=True)
+
+            if not self.GCE_flag:
+                pred += self.bias(torch.stack((user, item), dim=1)).sum() + self.bias_
             # return torch.squeeze(ix)
-            return ix.view(-1)
+            return pred.view(-1)
         else:
             embed_user = self.embed_user(user)
             embed_item = self.embed_item(item)
@@ -101,73 +103,6 @@ class PointFM(nn.Module):
             pred += self.u_bias(user) + self.i_bias(item) + self.bias_
 
             return pred.view(-1)
-
-    def fit(self, train_loader):
-        if torch.cuda.is_available():
-            self.cuda()
-        else:
-            self.cpu()
-
-        if self.optimizer == 'adam':
-            optimizer = optim.Adam(self.parameters(), lr=self.lr)
-
-        elif self.optimizer == 'SGD':
-            optimizer = optim.SGD(self.parameters(), lr=self.lr)
-        else:
-            raise ValueError(f'Invalid OPTIMIZER : {self.loss_type}')
-
-        if self.loss_type == 'CL':
-            criterion = nn.BCEWithLogitsLoss(reduction='sum')
-        elif self.loss_type == 'SL':
-            criterion = nn.MSELoss(reduction='sum')
-        else:
-            raise ValueError(f'Invalid loss type: {self.loss_type}')
-
-        last_loss = 0.
-        for epoch in range(1, self.epochs + 1):
-            self.train()
-
-            current_loss = 0.
-            # set process bar display
-            pbar = tqdm(train_loader)
-            pbar.set_description(f'[Epoch {epoch:03d}]')
-            for user, item, label in pbar:
-                if torch.cuda.is_available():
-                    user = user.cuda()
-                    item = item.cuda()
-                    label = label.cuda()
-                else:
-                    user = user.cpu()
-                    item = item.cpu()
-                    label = label.cpu()
-
-                self.zero_grad()
-                prediction = self.forward(user, item)
-
-                loss = criterion(prediction, label)
-                if self.reindex:
-                    # TODO: IMPLEMEMNT REGULARIZATIONS
-                    pass
-                else:
-                    loss += self.reg_1 * (self.embed_item.weight.norm(p=1) +self.embed_user.weight.norm(p=1))
-                    loss += self.reg_2 * (self.embed_item.weight.norm() +self.embed_user.weight.norm())
-
-                if torch.isnan(loss):
-                    raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')
-
-                loss.backward()
-                optimizer.step()
-
-                pbar.set_postfix(loss=loss.item())
-                current_loss += loss.item()
-
-            self.eval()
-            delta_loss = float(current_loss - last_loss)
-            if (abs(delta_loss) < 1e-5) and self.early_stop:
-                print('Satisfy early stop mechanism')
-                break
-            else:
-                last_loss = current_loss
 
     def predict(self, u, i):
         pred = self.forward(u, i).cpu()

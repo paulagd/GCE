@@ -110,6 +110,7 @@ if __name__ == '__main__':
                 loss_type=args.loss_type,
                 reindex=args.reindex,
                 X=X if args.gce else None,
+                GCE_flag=args.gce,
                 A=edge_idx if args.gce else None,
                 gpuid=args.gpu
             )
@@ -125,6 +126,7 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                GCE_flag=args.gce,
                 reindex=args.reindex,
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
@@ -144,7 +146,10 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                GCE_flag=args.gce,
                 reindex=args.reindex,
+                # X=X if args.gce else None,
+                # A=edge_idx if args.gce else None,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'nfm':
@@ -163,7 +168,10 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                GCE_flag=args.gce,
                 reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'deepfm':
@@ -289,12 +297,28 @@ if __name__ == '__main__':
 
     # build recommender model
     s_time = time.time()
-    model.fit(train_loader)
+    # TODO: refactor train
+    if args.problem_type == 'pair':
+        # model.fit(train_loader)
+        from daisy.model.pair.train import train
+        train(args, model, train_loader, device)
+    elif args.problem_type == 'point':
+        from daisy.model.point.train import train
+        train(args, model, train_loader, device)
+    else:
+        raise ValueError()
+    # model.fit(train_loader)
     elapsed_time = time.time() - s_time
-    time_log.write(f'{args.dataset}_{args.prepro}_{args.test_method}_{args.problem_type}{args.algo_name}_{args.loss_type}_{args.sample_method},{elapsed_time:.4f}' + '\n')
+
+    hours, rem = divmod(elapsed_time, 3600)
+    minutes, seconds = divmod(rem, 60)
+
+    time_log.write(f'{args.dataset}_{args.prepro}_{args.test_method}_{args.problem_type}{args.algo_name}'
+                   f'_{args.loss_type}_{args.sample_method}_GCE={args.gce},  {minutes:.2f} min, {seconds:.4f}seconds' + '\n')
     time_log.close()
 
     print('Start Calculating Metrics......')
+
     test_ucands = build_candidates_set(test_ur, total_train_ur, item_pool, candidates_num)
 
     # get predict result
@@ -361,11 +385,11 @@ if __name__ == '__main__':
         ndcg_k = np.mean([ndcg_at_k(r, k) for r in tmp_preds.values()])
 
         if k == 10:
-            print(f'Precision@{k}: {pre_k:.4f}')
-            print(f'Recall@{k}: {rec_k:.4f}')
+            # print(f'Precision@{k}: {pre_k:.4f}')
+            # print(f'Recall@{k}: {rec_k:.4f}')
             print(f'HR@{k}: {hr_k:.4f}')
-            print(f'MAP@{k}: {map_k:.4f}')
-            print(f'MRR@{k}: {mrr_k:.4f}')
+            # print(f'MAP@{k}: {map_k:.4f}')
+            # print(f'MRR@{k}: {mrr_k:.4f}')
             print(f'NDCG@{k}: {ndcg_k:.4f}')
 
         res[k] = np.array([pre_k, rec_k, hr_k, map_k, mrr_k, ndcg_k])
@@ -374,6 +398,16 @@ if __name__ == '__main__':
     algo_prefix = f'{args.loss_type}_{args.problem_type}_{args.algo_name}'
 
     res.to_csv(
-        f'{result_save_path}{algo_prefix}_{common_prefix}_kpi_results.csv', 
+        f'{result_save_path}{algo_prefix}_{common_prefix}_GCE={args.gce}_kpi_results.csv',
         index=False
     )
+
+    print('+'*80)
+    print('+'*80)
+    print(f'TRAINING ELAPSED TIME: {minutes:.2f} min, {seconds:.4f}seconds')
+
+    elapsed_time_total = time.time() - s_time
+    hours, rem = divmod(elapsed_time_total, 3600)
+    minutes, seconds = divmod(rem, 60)
+
+    print(f'TOTAL ELAPSED TIME: {minutes:.2f} min, {seconds:.4f}seconds')

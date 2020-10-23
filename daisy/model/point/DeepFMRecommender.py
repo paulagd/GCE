@@ -153,6 +153,7 @@ class PointDeepFM(nn.Module):
             raise ValueError(f'Invalid loss type: {self.loss_type}')
 
         last_loss = 0.
+        early_stopping_counter = 0
         for epoch in range(1, self.epochs + 1):
             self.train()
 
@@ -187,12 +188,14 @@ class PointDeepFM(nn.Module):
                 current_loss += loss.item()
 
             self.eval()
-            delta_loss = float(current_loss - last_loss)
-            if (abs(delta_loss) < 1e-5) and self.early_stop:
-                print('Satisfy early stop mechanism')
-                break
+            if (last_loss < current_loss) and self.early_stop:
+                early_stopping_counter += 1
+                if early_stopping_counter == 4:
+                    print('Satisfy early stop mechanism')
+                    break
             else:
-                last_loss = current_loss
+                early_stopping_counter = 0
+            last_loss = current_loss
 
     def predict(self, u, i):
         pred = self.forward(u, i).cpu()

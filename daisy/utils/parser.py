@@ -26,8 +26,8 @@ def parse_args():
                         help='select dataset')
     parser.add_argument('--prepro', 
                         type=str, 
-                        default='20filter',
-                        help='dataset preprocess op.: origin/Ncore')
+                        default='10core',
+                        help='dataset preprocess op.: origin/Ncore/filter')
     parser.add_argument('--topk', 
                         type=int, 
                         default=10,
@@ -61,7 +61,7 @@ def parse_args():
                         help='negative sampling method mixed with uniform, options: item-ascd, item-desc')
     parser.add_argument('--sample_ratio', 
                         type=float, 
-                        default=0, 
+                        default=1,
                         help='mix sample method ratio, 0 for all uniform')
     parser.add_argument('--init_method', 
                         type=str, 
@@ -105,11 +105,11 @@ def parse_args():
                         help='dropout rate')
     parser.add_argument('--lr', 
                         type=float, 
-                        default=0.001,
+                        default=0.01,
                         help='learning rate')
     parser.add_argument('--epochs', 
                         type=int, 
-                        default=200,
+                        default=10,
                         help='training epochs')
     parser.add_argument("--num_workers",
                         type=int,

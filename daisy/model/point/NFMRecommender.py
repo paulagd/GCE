@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+from daisy.model.GCE.gce import GCE
+from IPython import embed
 
 
 class PointNFM(nn.Module):
@@ -23,8 +25,11 @@ class PointNFM(nn.Module):
                  reg_2=0., 
                  loss_type='CL', 
                  gpuid='0',
-                 reindex = False,
-                 early_stop=True):
+                 reindex=False,
+                 GCE_flag=False,
+                 early_stop=True,
+                 X=None,
+                 A=None):
         """
         Point-wise NFM Recommender Class
         Parameters
@@ -59,17 +64,29 @@ class PointNFM(nn.Module):
         self.epochs = epochs
         self.loss_type = loss_type
         self.early_stop = early_stop
+        self.reindex = reindex
+        self.GCE_flag = GCE_flag
 
         os.environ['CUDA_VISIBLE_DEVICES'] = gpuid
         cudnn.benchmark = True
 
-        self.embed_user = nn.Embedding(user_num, factors)
-        self.embed_item = nn.Embedding(item_num, factors)
+        if reindex:
+            if self.GCE_flag:
+                print('GCE EMBEDDINGS DEFINED')
+                self.embeddings = GCE(user_num + item_num, factors, X, A)
+            else:
+                self.embeddings = nn.Embedding(user_num + item_num, factors)
+                self.bias = nn.Embedding(user_num + item_num, 1)
+                self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
-        self.u_bias = nn.Embedding(user_num, 1)
-        self.i_bias = nn.Embedding(item_num, 1)
+        else:
+            self.embed_user = nn.Embedding(user_num, factors)
+            self.embed_item = nn.Embedding(item_num, factors)
 
-        self.bias_ = nn.Parameter(torch.tensor([0.0]))
+            self.u_bias = nn.Embedding(user_num, 1)
+            self.i_bias = nn.Embedding(item_num, 1)
+
+            self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
         FM_modules = []
         if self.batch_norm:
@@ -100,10 +117,14 @@ class PointNFM(nn.Module):
         self._init_weight()
 
     def _init_weight(self):
-        nn.init.normal_(self.embed_item.weight, std=0.01)
-        nn.init.normal_(self.embed_user.weight, std=0.01)
-        nn.init.constant_(self.u_bias.weight, 0.0)
-        nn.init.constant_(self.i_bias.weight, 0.0)
+        if self.reindex and not self.GCE_flag:
+            nn.init.normal_(self.embeddings.weight, std=0.01)
+            nn.init.constant_(self.bias.weight, 0.0)
+        elif not self.reindex:
+            nn.init.normal_(self.embed_item.weight, std=0.01)
+            nn.init.normal_(self.embed_user.weight, std=0.01)
+            nn.init.constant_(self.u_bias.weight, 0.0)
+            nn.init.constant_(self.i_bias.weight, 0.0)
 
         # for deep layers
         if self.num_layers > 0:  # len(self.layers)
@@ -115,82 +136,29 @@ class PointNFM(nn.Module):
             nn.init.constant_(self.prediction.weight, 1.0)
 
     def forward(self, user, item):
-        embed_user = self.embed_user(user)
-        embed_item = self.embed_item(item)
 
-        fm = embed_user * embed_item
+        if self.reindex:
+            embeddings = self.embeddings(torch.stack((user, item), dim=1))
+            fm = embeddings.prod(dim=1)  # shape [256, 32]
+        else:
+            embed_user = self.embed_user(user)
+            embed_item = self.embed_item(item)
+            fm = embed_user * embed_item
+
         fm = self.FM_layers(fm)
 
         if self.num_layers:
             fm = self.deep_layers(fm)
 
-        fm += self.u_bias(user) + self.i_bias(item) + self.bias_
+        if self.reindex and not self.GCE_flag:
+            fm += self.bias_
+
+        elif not self.GCE_flag:
+            fm += self.u_bias(user) + self.i_bias(item) + self.bias_
+
         pred = self.prediction(fm)
 
         return pred.view(-1)
-
-    def fit(self, train_loader):
-        if torch.cuda.is_available():
-            self.cuda()
-        else:
-            self.cpu()
-
-        if self.optimizer == 'adam':
-            optimizer = optim.Adam(self.parameters(), lr=self.lr)
-
-        elif self.optimizer == 'SGD':
-            optimizer = optim.SGD(self.parameters(), lr=self.lr)
-        else:
-            raise ValueError(f'Invalid OPTIMIZER : {self.loss_type}')
-
-        if self.loss_type == 'CL':
-            criterion = nn.BCEWithLogitsLoss(reduction='sum')
-        elif self.loss_type == 'SL':
-            criterion = nn.MSELoss(reduction='sum')
-        else:
-            raise ValueError(f'Invalid loss type: {self.loss_type}')
-
-        last_loss = 0.
-        for epoch in range(1, self.epochs + 1):
-            self.train()
-
-            current_loss = 0.
-            # set process bar display
-            pbar = tqdm(train_loader)
-            pbar.set_description(f'[Epoch {epoch:03d}]')
-            for user, item, label in pbar:
-                if torch.cuda.is_available():
-                    user = user.cuda()
-                    item = item.cuda()
-                    label = label.cuda()
-                else:
-                    user = user.cpu()
-                    item = item.cpu()
-                    label = label.cpu()
-
-                self.zero_grad()
-                prediction = self.forward(user, item)
-
-                loss = criterion(prediction, label)
-                loss += self.reg_1 * (self.embed_item.weight.norm(p=1) +self.embed_user.weight.norm(p=1))
-                loss += self.reg_2 * (self.embed_item.weight.norm() +self.embed_user.weight.norm())
-
-                if torch.isnan(loss):
-                    raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')
-
-                loss.backward()
-                optimizer.step()
-
-                pbar.set_postfix(loss=loss.item())
-                current_loss += loss.item()
-
-            self.eval()
-            delta_loss = float(current_loss - last_loss)
-            if (abs(delta_loss) < 1e-5) and self.early_stop:
-                print('Satisfy early stop mechanism')
-                break
-            else:
-                last_loss = current_loss
 
     def predict(self, u, i):
         pred = self.forward(u, i).cpu()

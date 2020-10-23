@@ -16,6 +16,7 @@ from daisy.utils.splitter import split_test, split_validation
 from daisy.utils.loader import load_rate, get_ur, convert_npy_mat, build_candidates_set
 from daisy.utils.metrics import precision_at_k, recall_at_k, map_at_k, hr_at_k, ndcg_at_k, mrr_at_k
 
+
 def opt_func(user_num, item_num, train_set, args):
     # retrain model by the whole train set
     # format training data
@@ -82,4 +83,3 @@ if __name__ == '__main__':
         )
         neg_set = sampler.transform(train_set, is_training=True)
 
-    

@@ -3,7 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-/data/netflix/
+/outputs/*
+/data/*
 *.zip
 
 time_log.txt
@@ -16,9 +17,7 @@ time_log.txt
 build/
 develop-eggs/
 dist/
-downloads/
-data/ml-1m/*
-outputs/*
+downloads/*
 eggs/
 .eggs/
 lib/
