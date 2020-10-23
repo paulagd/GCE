@@ -1,11 +1,6 @@
 import os
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
-
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from IPython import embed
 from daisy.model.GCE.gce import GCE

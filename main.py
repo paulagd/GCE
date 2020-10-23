@@ -233,6 +233,10 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'fm':
@@ -246,6 +250,10 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'neumf':
@@ -278,6 +286,10 @@ if __name__ == '__main__':
                 reg_1=args.reg_1,
                 reg_2=args.reg_2,
                 loss_type=args.loss_type,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
                 gpuid=args.gpu
             )
         else:

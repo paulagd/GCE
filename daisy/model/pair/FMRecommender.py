@@ -1,10 +1,9 @@
 import os
-from tqdm import tqdm
-
 import torch
 import torch.nn as nn
-import torch.optim as optim
+from daisy.model.GCE.gce import GCE
 import torch.backends.cudnn as cudnn
+from IPython import embed
 
 
 class PairFM(nn.Module):
@@ -17,7 +16,11 @@ class PairFM(nn.Module):
                  reg_1=0.,
                  reg_2=0.,
                  loss_type='BPR',
-                 gpuid='0', 
+                 gpuid='0',
+                 reindex=False,
+                 X=None,
+                 A=None,
+                 GCE_flag=False,
                  early_stop=True):
         """
         Pair-wise FM Recommender Class
@@ -43,36 +46,64 @@ class PairFM(nn.Module):
         self.lr = lr
         self.reg_1 = reg_1
         self.reg_2 = reg_2
+        self.reindex = reindex
+        self.GCE_flag = GCE_flag
 
-        self.embed_user = nn.Embedding(user_num, factors)
-        self.embed_item = nn.Embedding(item_num, factors)
+        if reindex:
+            if GCE_flag:
+                print('GCE EMBEDDINGS DEFINED')
+                self.embeddings = GCE(user_num + item_num, factors, X, A)
+            else:
+                self.embeddings = nn.Embedding(user_num + item_num, factors)
+                self.bias = nn.Embedding(user_num + item_num, 1)
+                self.bias_ = nn.Parameter(torch.tensor([0.0]))
+                # init weight
+                nn.init.normal_(self.embeddings.weight, std=0.01)
+                nn.init.constant_(self.bias.weight, 0.0)
+        else:
 
-        self.u_bias = nn.Embedding(user_num, 1)
-        self.i_bias = nn.Embedding(item_num, 1)
+            self.embed_user = nn.Embedding(user_num, factors)
+            self.embed_item = nn.Embedding(item_num, factors)
 
-        self.bias_ = nn.Parameter(torch.tensor([0.0]))
+            self.u_bias = nn.Embedding(user_num, 1)
+            self.i_bias = nn.Embedding(item_num, 1)
 
-        # init weight
-        nn.init.normal_(self.embed_user.weight, std=0.01)
-        nn.init.normal_(self.embed_item.weight, std=0.01)
-        nn.init.constant_(self.u_bias.weight, 0.0)
-        nn.init.constant_(self.i_bias.weight, 0.0)
+            self.bias_ = nn.Parameter(torch.tensor([0.0]))
+
+            # init weight
+            nn.init.normal_(self.embed_user.weight, std=0.01)
+            nn.init.normal_(self.embed_item.weight, std=0.01)
+            nn.init.constant_(self.u_bias.weight, 0.0)
+            nn.init.constant_(self.i_bias.weight, 0.0)
 
         self.loss_type = loss_type
         self.early_stop = early_stop
 
     def forward(self, u, i, j):
-        user = self.embed_user(u)
-        item_i = self.embed_item(i)
-        item_j = self.embed_item(j)
 
-        # inner product part
-        pred_i = (user * item_i).sum(dim=-1, keepdim=True)
-        pred_j = (user * item_j).sum(dim=-1, keepdim=True)
+        if self.reindex:
+            # embed()
+            embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
+            embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
+            # inner product part
+            pred_i = embeddings_ui.prod(dim=1).sum(dim=1, keepdim=True)
+            pred_j = embeddings_uj.prod(dim=1).sum(dim=1, keepdim=True)
+            # add bias
+            # if not self.GCE_flag:
+            #     pred_i += self.bias(torch.stack((u, i), dim=1)).sum() + self.bias_
+            #     pred_j += self.bias(torch.stack((u, j), dim=1)).sum() + self.bias_
+        else:
+            user = self.embed_user(u)
+            item_i = self.embed_item(i)
+            item_j = self.embed_item(j)
 
-        # add bias
-        pred_i += self.u_bias(u) + self.i_bias(i) + self.bias_
-        pred_j += self.u_bias(u) + self.i_bias(j) + self.bias_
+            # inner product part
+            pred_i = (user * item_i).sum(dim=-1, keepdim=True)
+            pred_j = (user * item_j).sum(dim=-1, keepdim=True)
+
+            # add bias
+            pred_i += self.u_bias(u) + self.i_bias(i) + self.bias_
+            pred_j += self.u_bias(u) + self.i_bias(j) + self.bias_
 
         return pred_i.view(-1), pred_j.view(-1)
 

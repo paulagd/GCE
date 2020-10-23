@@ -14,7 +14,7 @@ def parse_args():
                         help='activate to use GCE layer instead of current embbedding layer')
     parser.add_argument('--problem_type', 
                         type=str, 
-                        default='point', 
+                        default='pair',
                         help='pair-wise or point-wise')
     parser.add_argument('--algo_name', 
                         type=str, 
@@ -26,7 +26,7 @@ def parse_args():
                         help='select dataset')
     parser.add_argument('--prepro', 
                         type=str, 
-                        default='10core',
+                        default='5core',
                         help='dataset preprocess op.: origin/Ncore/filter')
     parser.add_argument('--topk', 
                         type=int, 
@@ -34,8 +34,8 @@ def parse_args():
                         help='top number of recommend list')
     parser.add_argument('--test_method', 
                         type=str, 
-                        default='tloo',
-                        help='method for split test,options: ufo/loo/fo/tfo/tloo')
+                        default='fo',
+                        help='method for split test,options: ufo/loo/fo(split by ratio)/tfo/tloo')
     parser.add_argument('--val_method', 
                         type=str, 
                         default='tloo',
@@ -53,7 +53,7 @@ def parse_args():
                         help='No. of folds for cross-validation')
     parser.add_argument('--cand_num', 
                         type=int, 
-                        default=99,
+                        default=1000,
                         help='No. of candidates item for predict')
     parser.add_argument('--sample_method', 
                         type=str, 
@@ -77,16 +77,16 @@ def parse_args():
                         help='negative sampling number')
     parser.add_argument('--loss_type', 
                         type=str, 
-                        default='CL', 
-                        help='loss function type')
+                        default='BPR',
+                        help='loss function type: BPR/CL')
     parser.add_argument('--optimizer',
                         type=str,
-                        default='adam',
+                        default='SGD',
                         help='type of optimizer: SGD /adam')
     # algo settings
     parser.add_argument('--factors', 
                         type=int, 
-                        default=32, 
+                        default=16,
                         help='latent factors numbers in the model')
     parser.add_argument('--reg_1', 
                         type=float, 
@@ -96,7 +96,7 @@ def parse_args():
     parser.add_argument('--reg_2', 
                         type=float, 
                         # default=0.001,
-                        default=0,
+                        default=0.01,
                         help='L2 regularization')
     parser.add_argument('--dropout', 
                         type=float, 
@@ -109,7 +109,7 @@ def parse_args():
                         help='learning rate')
     parser.add_argument('--epochs', 
                         type=int, 
-                        default=10,
+                        default=50,
                         help='training epochs')
     parser.add_argument("--num_workers",
                         type=int,

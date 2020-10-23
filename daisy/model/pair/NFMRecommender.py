@@ -1,10 +1,9 @@
 import os
-from tqdm import tqdm
-
 import torch
 import torch.nn as nn
-import torch.optim as optim
+from daisy.model.GCE.gce import GCE
 import torch.backends.cudnn as cudnn
+from IPython import embed
 
 
 class PairNFM(nn.Module):
@@ -21,7 +20,11 @@ class PairNFM(nn.Module):
                  reg_1=0.,
                  reg_2=0.,
                  loss_type='BPR', 
-                 gpuid='0', 
+                 gpuid='0',
+                 reindex=False,
+                 X=None,
+                 A=None,
+                 GCE_flag=False,
                  early_stop=True):
         """
         Pair-wise NFM Recommender Class
@@ -58,15 +61,26 @@ class PairNFM(nn.Module):
         self.reg_2 = reg_2
         self.epochs = epochs
         self.loss_type = loss_type
-        self.early_stop = early_stop
+        self.reindex = reindex
+        self.GCE_flag = GCE_flag
 
-        self.embed_user = nn.Embedding(user_num, factors)
-        self.embed_item = nn.Embedding(item_num, factors)
+        if reindex:
+            if self.GCE_flag:
+                print('GCE EMBEDDINGS DEFINED')
+                self.embeddings = GCE(user_num + item_num, factors, X, A)
+            else:
+                self.embeddings = nn.Embedding(user_num + item_num, factors)
+                # self.bias = nn.Embedding(user_num + item_num, 1)
+                self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
-        self.u_bias = nn.Embedding(user_num, 1)
-        self.i_bias = nn.Embedding(item_num, 1)
+        else:
+            self.embed_user = nn.Embedding(user_num, factors)
+            self.embed_item = nn.Embedding(item_num, factors)
 
-        self.bias_ = nn.Parameter(torch.tensor([0.0]))
+            self.u_bias = nn.Embedding(user_num, 1)
+            self.i_bias = nn.Embedding(item_num, 1)
+
+            self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
         FM_modules = []
         if self.batch_norm:
@@ -97,10 +111,15 @@ class PairNFM(nn.Module):
         self._init_weight()
 
     def _init_weight(self):
-        nn.init.normal_(self.embed_item.weight, std=0.01)
-        nn.init.normal_(self.embed_user.weight, std=0.01)
-        nn.init.constant_(self.u_bias.weight, 0.0)
-        nn.init.constant_(self.i_bias.weight, 0.0)
+
+        if self.reindex and not self.GCE_flag:
+            nn.init.normal_(self.embeddings.weight, std=0.01)
+            # nn.init.constant_(self.bias.weight, 0.0)
+        elif not self.reindex:
+            nn.init.normal_(self.embed_item.weight, std=0.01)
+            nn.init.normal_(self.embed_user.weight, std=0.01)
+            nn.init.constant_(self.u_bias.weight, 0.0)
+            nn.init.constant_(self.i_bias.weight, 0.0)
 
         # for deep layers
         if self.num_layers > 0:
@@ -112,13 +131,20 @@ class PairNFM(nn.Module):
             nn.init.constant_(self.prediction.weight, 1.0)
 
     def forward(self, u, i, j):
-        user = self.embed_user(u)
-        item_i = self.embed_item(i)
-        item_j = self.embed_item(j)
+        if self.reindex:
+            embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
+            embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
+            # ix = torch.bmm(embeddings[:, :1, :], embeddings[:, 1:, :].permute(0, 2, 1))
+            pred_i = embeddings_ui.prod(dim=1)
+            pred_j = embeddings_uj.prod(dim=1)
+        else:
+            user = self.embed_user(u)
+            item_i = self.embed_item(i)
+            item_j = self.embed_item(j)
+            # inner product part
+            pred_i = (user * item_i)
+            pred_j = (user * item_j)
 
-        # inner product part
-        pred_i = (user * item_i)
-        pred_j = (user * item_j)
         pred_i = self.FM_layers(pred_i)
         pred_j = self.FM_layers(pred_j)
 
@@ -126,8 +152,9 @@ class PairNFM(nn.Module):
             pred_i = self.deep_layers(pred_i)
             pred_j = self.deep_layers(pred_j)
 
-        pred_i += self.u_bias(u) + self.i_bias(i) + self.bias_
-        pred_j += self.u_bias(u) + self.i_bias(j) + self.bias_
+        if not self.reindex:
+            pred_i += self.u_bias(u) + self.i_bias(i) + self.bias_
+            pred_j += self.u_bias(u) + self.i_bias(j) + self.bias_
 
         pred_i = self.prediction(pred_i)
         pred_j = self.prediction(pred_j)
