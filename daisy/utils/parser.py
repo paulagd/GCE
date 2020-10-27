@@ -14,7 +14,7 @@ def parse_args():
                         help='activate to use GCE layer instead of current embbedding layer')
     parser.add_argument('--problem_type', 
                         type=str, 
-                        default='pair',
+                        default='point',
                         help='pair-wise or point-wise')
     parser.add_argument('--algo_name', 
                         type=str, 
@@ -26,7 +26,7 @@ def parse_args():
                         help='select dataset')
     parser.add_argument('--prepro', 
                         type=str, 
-                        default='5core',
+                        default='10filter',
                         help='dataset preprocess op.: origin/Ncore/filter')
     parser.add_argument('--topk', 
                         type=int, 
@@ -34,7 +34,7 @@ def parse_args():
                         help='top number of recommend list')
     parser.add_argument('--test_method', 
                         type=str, 
-                        default='fo',
+                        default='tloo',
                         help='method for split test,options: ufo/loo/fo(split by ratio)/tfo/tloo')
     parser.add_argument('--val_method', 
                         type=str, 
@@ -46,14 +46,14 @@ def parse_args():
                         help='split ratio for test set')
     parser.add_argument('--val_size', 
                         type=float, 
-                        default=0, help='split ratio for validation set')
+                        default=0.1, help='split ratio for validation set')
     parser.add_argument('--fold_num', 
                         type=int, 
                         default=5, 
                         help='No. of folds for cross-validation')
     parser.add_argument('--cand_num', 
                         type=int, 
-                        default=1000,
+                        default=99,
                         help='No. of candidates item for predict')
     parser.add_argument('--sample_method', 
                         type=str, 
@@ -77,16 +77,16 @@ def parse_args():
                         help='negative sampling number')
     parser.add_argument('--loss_type', 
                         type=str, 
-                        default='BPR',
+                        default='CL',
                         help='loss function type: BPR/CL')
     parser.add_argument('--optimizer',
                         type=str,
-                        default='SGD',
+                        default='adam',
                         help='type of optimizer: SGD /adam')
     # algo settings
     parser.add_argument('--factors', 
                         type=int, 
-                        default=16,
+                        default=64,
                         help='latent factors numbers in the model')
     parser.add_argument('--reg_1', 
                         type=float, 
