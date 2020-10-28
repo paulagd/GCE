@@ -7,6 +7,7 @@ __pycache__/
 /data/*
 /outputs_LASTFM/*
 /outputs_ML1M/*
+/outputs_ml-100k/*
 *.zip
 
 time_log.txt
