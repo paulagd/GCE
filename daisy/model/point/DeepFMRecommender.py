@@ -12,7 +12,7 @@ import torch.backends.cudnn as cudnn
 class PointDeepFM(nn.Module):
     def __init__(self,
                  user_num, 
-                 item_num, 
+                 max_dim,
                  factors, 
                  act_activation,
                  num_layers,  # [32, 32] for example
@@ -31,7 +31,7 @@ class PointDeepFM(nn.Module):
         Parameters
         ----------
         user_num : int, the number of users
-        item_num : int, the number of items
+        max_dim : int, the number of items
         factors : int, the number of latent factor
         act_activation : str, activation function for hidden layer
         num_layers : int, number of hidden layers
@@ -63,10 +63,10 @@ class PointDeepFM(nn.Module):
         self.optimizer = optimizer
 
         self.embed_user = nn.Embedding(user_num, factors)
-        self.embed_item = nn.Embedding(item_num, factors)
+        self.embed_item = nn.Embedding(max_dim, factors)
 
         self.u_bias = nn.Embedding(user_num, 1)
-        self.i_bias = nn.Embedding(item_num, 1)
+        self.i_bias = nn.Embedding(max_dim, 1)
 
         self.bias_ = nn.Parameter(torch.tensor([0.0]))
 

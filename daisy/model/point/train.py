@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from tqdm import tqdm
+from IPython import embed
 
 
-def train(args, model, train_loader, device):
+def train(args, model, train_loader, device, context_flag):
     model.to(device)
 
     if args.optimizer == 'adam':
@@ -35,13 +36,14 @@ def train(args, model, train_loader, device):
         # set process bar display
         pbar = tqdm(train_loader)
         pbar.set_description(f'[Epoch {epoch:03d}]')
-        for user, item, label in pbar:
+        for user, item, context, label in pbar:
             user = user.to(device)
             item = item.to(device)
+            context = context.to(device) if context_flag else None
             label = label.to(device)
 
             model.zero_grad()
-            prediction = model(user, item)
+            prediction = model(user, item, context)
             loss = criterion(prediction, label)
             # if args.reindex:
             #     # TODO: IMPLEMEMNT REGULARIZATIONS

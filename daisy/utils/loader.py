@@ -11,7 +11,7 @@ from collections import defaultdict
 from IPython import embed
 
 
-def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui'):
+def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False):
     """
     Method of loading certain raw data
     Parameters
@@ -190,6 +190,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             df = df.query(f'cnt_item >= {core_num}').reset_index(drop=True).copy()
             df.drop(['cnt_item'], axis=1, inplace=True)
 
+
             return df
 
         def filter_item(df):
@@ -228,12 +229,23 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     user_num = df['user'].nunique()
     item_num = df['item'].nunique()
 
-    print(f'Finish loading [{src}]-[{prepro}] dataset')
+    print(f'Finish loading [{src}]-[{prepro}] dataset with [context == {context}]')
 
     return df, user_num, item_num
 
 
-def get_ur(df):
+def add_last_clicked_item_context(df, user_num):
+    df['context'] = df['rating']
+    df = df[['user', 'item', 'context', 'rating', 'timestamp']]
+    data = df.to_numpy().astype(int)
+    sorted_data = data[data[:, -1].argsort()]
+    # user_num == first item number
+    sorted_data[:, 2] = np.concatenate(([user_num], sorted_data[:-1][:, 1]))
+    new_df = pd.DataFrame(data=sorted_data, columns=list(df.columns))
+    return new_df
+
+
+def get_ur(df, context=False):
     """
     Method of getting user-rating pairs
     Parameters
@@ -246,8 +258,10 @@ def get_ur(df):
     """
     ur = defaultdict(set)
     for _, row in df.iterrows():
-        ur[int(row['user'])].add(int(row['item']))
-
+        if context:
+            ur[int(row['user']), int(row['context'])].add(int(row['item']))
+        else:
+            ur[int(row['user'])].add(int(row['item']))
     return ur
 
 
@@ -342,7 +356,7 @@ def build_candidates_set(test_ur, train_ur, item_pool, candidates_num=1000):
     test_ucands = defaultdict(list)
     for k, v in test_ur.items():
         sample_num = candidates_num - len(v) if len(v) < candidates_num else 0
-        sub_item_pool = item_pool - v - train_ur[k]  # remove GT & interacted
+        sub_item_pool = item_pool - v - train_ur[k]  # remove GT & interacted (with same context)
         sample_num = min(len(sub_item_pool), sample_num)
         if sample_num == 0:
             samples = random.sample(v, candidates_num)

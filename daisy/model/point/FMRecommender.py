@@ -9,7 +9,7 @@ from daisy.model.GCE.gce import GCE
 class PointFM(nn.Module):
     def __init__(self, 
                  user_num, 
-                 item_num, 
+                 max_dim,
                  factors=84, 
                  epochs=20,
                  optimizer='adam',
@@ -28,7 +28,7 @@ class PointFM(nn.Module):
         Parameters
         ----------
         user_num : int, the number of users
-        item_num : int, the number of items
+        max_dim : int, the number of items
         factors : int, the number of latent factor
         epochs : int, number of training epochs
         lr : float, learning rate
@@ -55,20 +55,20 @@ class PointFM(nn.Module):
         if reindex:
             if GCE_flag:
                 print('GCE EMBEDDINGS DEFINED')
-                self.embeddings = GCE(user_num + item_num, factors, X, A)
+                self.embeddings = GCE(max_dim, factors, X, A)
             else:
-                self.embeddings = nn.Embedding(user_num + item_num, factors)
-                self.bias = nn.Embedding(user_num + item_num, 1)
+                self.embeddings = nn.Embedding(max_dim, factors)
+                self.bias = nn.Embedding(max_dim, 1)
                 self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
                 nn.init.normal_(self.embeddings.weight, std=0.01)
                 nn.init.constant_(self.bias.weight, 0.0)
         else:
             self.embed_user = nn.Embedding(user_num, factors)
-            self.embed_item = nn.Embedding(item_num, factors)
+            self.embed_item = nn.Embedding(max_dim, factors)
 
             self.u_bias = nn.Embedding(user_num, 1)
-            self.i_bias = nn.Embedding(item_num, 1)
+            self.i_bias = nn.Embedding(max_dim, 1)
 
             self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
@@ -80,10 +80,14 @@ class PointFM(nn.Module):
 
         self.loss_type = loss_type
 
-    def forward(self, user, item):
+    def forward(self, user, item, context):
 
         if self.reindex:
-            embeddings = self.embeddings(torch.stack((user, item), dim=1))
+            if context is None:
+                embeddings = self.embeddings(torch.stack((user, item), dim=1))
+            else:
+                embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
+
             pred = embeddings.prod(dim=1).sum(dim=1, keepdim=True)
 
             if not self.GCE_flag:
@@ -99,7 +103,7 @@ class PointFM(nn.Module):
 
             return pred.view(-1)
 
-    def predict(self, u, i):
-        pred = self.forward(u, i).cpu()
+    def predict(self, u, i, c):
+        pred = self.forward(u, i, c).cpu()
         
         return pred

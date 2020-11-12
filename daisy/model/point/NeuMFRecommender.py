@@ -12,7 +12,7 @@ from daisy.model.GCE.gce import GCE
 class PointNeuMF(nn.Module):
     def __init__(self,
                  user_num, 
-                 item_num, 
+                 max_dim,
                  factors, 
                  num_layers, 
                  q, 
@@ -67,15 +67,15 @@ class PointNeuMF(nn.Module):
         self.GCE_flag = GCE_flag
 
         if reindex:
-            self.embed_GMF = nn.Embedding(user_num + item_num, factors)
-            self.embed_MLP = nn.Embedding(user_num + item_num, factors * (2 ** (num_layers - 1)))
+            self.embed_GMF = nn.Embedding(max_dim, factors)
+            self.embed_MLP = nn.Embedding(max_dim, factors * (2 ** (num_layers - 1)))
 
         else:
             self.embed_user_GMF = nn.Embedding(user_num, factors)
-            self.embed_item_GMF = nn.Embedding(item_num, factors)
+            self.embed_item_GMF = nn.Embedding(max_dim, factors)
 
             self.embed_user_MLP = nn.Embedding(user_num, factors * (2 ** (num_layers - 1)))
-            self.embed_item_MLP = nn.Embedding(item_num, factors * (2 ** (num_layers - 1)))
+            self.embed_item_MLP = nn.Embedding(max_dim, factors * (2 ** (num_layers - 1)))
 
         MLP_modules = []
         for i in range(num_layers):

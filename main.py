@@ -12,7 +12,7 @@ from daisy.utils.sampler import Sampler
 from daisy.utils.parser import parse_args
 from daisy.utils.splitter import split_test
 from daisy.utils.data import PointData, PairData, UAEData, sparse_mx_to_torch_sparse_tensor
-from daisy.utils.loader import load_rate, get_ur, convert_npy_mat, build_candidates_set
+from daisy.utils.loader import load_rate, get_ur, convert_npy_mat, build_candidates_set, add_last_clicked_item_context
 from daisy.utils.metrics import precision_at_k, recall_at_k, map_at_k, hr_at_k, ndcg_at_k, mrr_at_k
 
 from torch_geometric.utils import from_scipy_sparse_matrix
@@ -40,9 +40,16 @@ if __name__ == '__main__':
     time_log = open('time_log.txt', 'a') 
     
     ''' Test Process for Metrics Exporting '''
-    df, user_num, item_num = load_rate(args.dataset, args.prepro, binary=False)
+    df, users, items = load_rate(args.dataset, args.prepro, binary=True, context=args.context)
     if args.reindex:
-        df['item'] = df['item'] + user_num
+        df['item'] = df['item'] + users
+        if args.context:
+            df = add_last_clicked_item_context(df, users)
+            df['context'] = df['context'] + items
+
+            # TODO: SHOULD I REINDEX THE CONTEXT?
+            # np.max(data, axis=0) == array([      942,      2094,      2094,         1, 893286638])
+            # users, items = np.max(data, axis=0)[:2]
 
     train_set, test_set = split_test(df, args.test_method, args.test_size)
     # temporary used for tuning test result
@@ -51,32 +58,31 @@ if __name__ == '__main__':
     if args.dataset in ['yelp']:
         train_set['timestamp'] = pd.to_datetime(train_set['timestamp'])
         test_set['timestamp'] = pd.to_datetime(test_set['timestamp'])
+        
     df = pd.concat([train_set, test_set], ignore_index=True)
-    user_num = df['user'].nunique()
-    item_num = df['item'].nunique()
 
-    train_set['rating'] = 1.0
-    test_set['rating'] = 1.0
+    # user_num = df['user'].nunique()
+    # item_num = df['item'].nunique()
+    dims = np.max(df.to_numpy().astype(int), axis=0) + 1
 
     # get ground truth
-    test_ur = get_ur(test_set)
-    total_train_ur = get_ur(train_set)
+    test_ur = get_ur(test_set, context=args.context)
+    total_train_ur = get_ur(train_set, context=args.context)
     # initial candidate item pool
-    item_pool = set(range(user_num, item_num+user_num)) if args.reindex else set(range(item_num))
+    item_pool = set(range(dims[0], dims[1])) if args.reindex else set(range(dims[1]))
     candidates_num = args.cand_num
 
     print('='*50, '\n')
     # retrain model by the whole train set
     # format training data
     sampler = Sampler(
-        user_num, 
-        item_num, 
+        dims,
         num_ng=args.num_ng, 
         sample_method=args.sample_method, 
         sample_ratio=args.sample_ratio,
         reindex=args.reindex
     )
-    neg_set, adj_mx = sampler.transform(train_set, is_training=True)
+    neg_set, adj_mx = sampler.transform(train_set, is_training=True, context=args.context)
     if args.gce:
         X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
         # We retrieve the graph's edges and send both them and graph to device in the next two lines
@@ -84,23 +90,26 @@ if __name__ == '__main__':
         edge_idx = edge_idx.to(device)
 
     if args.algo_name in ['cdae', 'vae']:
-        train_dataset = UAEData(user_num, item_num, train_set, test_set)
-        training_mat = convert_npy_mat(user_num, item_num, train_set)
+        train_dataset = UAEData(dims[0], dims[1], train_set, test_set)
+        training_mat = convert_npy_mat(dims[0], dims[1], train_set)
     else:
         if args.problem_type == 'pair':
             train_dataset = PairData(neg_set, is_training=True)
         else:
-            train_dataset = PointData(neg_set, is_training=True)
+            train_dataset = PointData(neg_set, is_training=True, context=args.context)
 
     # if args.algo_name == 'mostpop':
     #     from daisy.model.PopRecommender import MostPop
     #     model = MostPop(n=100)
     if args.problem_type == 'point':
+        user_num = dims[0]
+        max_dim = dims[2] if args.context else dims[1]
+
         if args.algo_name == 'mf':
             from daisy.model.point.MFRecommender import PointMF
             model = PointMF(
                 user_num, 
-                item_num, 
+                max_dim,
                 factors=args.factors,
                 epochs=args.epochs,
                 optimizer=args.optimizer,
@@ -118,7 +127,7 @@ if __name__ == '__main__':
             from daisy.model.point.FMRecommender import PointFM
             model = PointFM(
                 user_num, 
-                item_num,
+                max_dim,
                 factors=args.factors,
                 optimizer=args.optimizer,
                 epochs=args.epochs,
@@ -136,7 +145,7 @@ if __name__ == '__main__':
             from daisy.model.point.NeuMFRecommender import PointNeuMF
             model = PointNeuMF(
                 user_num, 
-                item_num,
+                max_dim,
                 factors=args.factors,
                 num_layers=args.num_layers,
                 q=args.dropout,
@@ -156,7 +165,7 @@ if __name__ == '__main__':
             from daisy.model.point.NFMRecommender import PointNFM
             model = PointNFM(
                 user_num,
-                item_num,
+                max_dim,
                 factors=args.factors,
                 optimizer=args.optimizer,
                 act_function=args.act_func,
@@ -178,7 +187,7 @@ if __name__ == '__main__':
             from daisy.model.point.DeepFMRecommender import PointDeepFM
             model = PointDeepFM(
                 user_num,
-                item_num,
+                max_dim,
                 factors=args.factors,
                 act_activation=args.act_func,
                 optimizer=args.optimizer,
@@ -313,10 +322,10 @@ if __name__ == '__main__':
     if args.problem_type == 'pair':
         # model.fit(train_loader)
         from daisy.model.pair.train import train
-        train(args, model, train_loader, device)
+        train(args, model, train_loader, device, args.context)
     elif args.problem_type == 'point':
         from daisy.model.point.train import train
-        train(args, model, train_loader, device)
+        train(args, model, train_loader, device, args.context)
     else:
         raise ValueError()
     # model.fit(train_loader)
@@ -347,13 +356,21 @@ if __name__ == '__main__':
     else:
         for u in tqdm(test_ucands.keys()):
             # build a test MF dataset for certain user u to accelerate
-            tmp = pd.DataFrame({
-                'user': [u for _ in test_ucands[u]], 
-                'item': test_ucands[u], 
-                'rating': [0. for _ in test_ucands[u]], # fake label, make nonsense
-            })
-            tmp_neg_set = sampler.transform(tmp, is_training=False)
-            tmp_dataset = PairData(tmp_neg_set, is_training=False)
+            if args.context:
+                tmp = pd.DataFrame({
+                    'user': [u[0] for _ in test_ucands[u]],
+                    'item': test_ucands[u],
+                    'context': [u[1] for _ in test_ucands[u]],
+                    'rating': [0. for _ in test_ucands[u]],  # fake label, make nonsense
+                })
+            else:
+                tmp = pd.DataFrame({
+                    'user': [u for _ in test_ucands[u]],
+                    'item': test_ucands[u],
+                    'rating': [0. for _ in test_ucands[u]], # fake label, make nonsense
+                })
+            tmp_neg_set = sampler.transform(tmp, is_training=False, context=args.context)
+            tmp_dataset = PairData(tmp_neg_set, is_training=False, context=args.context)
             tmp_loader = data.DataLoader(
                 tmp_dataset,
                 batch_size=candidates_num, 
@@ -362,11 +379,12 @@ if __name__ == '__main__':
             )
             # get top-N list with torch method 
             for items in tmp_loader:
-                user_u, item_i = items[0], items[1]
+                user_u, item_i, context = items[0], items[1], items[2]
                 user_u = user_u.to(device)
                 item_i = item_i.to(device)
+                context = context.to(device) if args.context else None
 
-                prediction = model.predict(user_u, item_i)
+                prediction = model.predict(user_u, item_i, context)
                 _, indices = torch.topk(prediction, args.topk)
                 top_n = torch.take(torch.tensor(test_ucands[u]), indices).cpu().numpy()
 
@@ -375,7 +393,6 @@ if __name__ == '__main__':
     # convert rank list to binary-interaction
     for u in preds.keys():
         preds[u] = [1 if i in test_ur[u] else 0 for i in preds[u]]
-
     # process topN list and store result for reporting KPI
     print('Save metric@k result to res folder...')
     result_save_path = f'./res/{args.dataset}/{args.prepro}/{args.test_method}/'

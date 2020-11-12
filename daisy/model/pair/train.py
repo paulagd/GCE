@@ -6,7 +6,7 @@ from IPython import embed
 import torch.backends.cudnn as cudnn
 
 
-def train(args, model, train_loader, device):
+def train(args, model, train_loader, device, context_flag):
     cudnn.benchmark = True
 
     model.to(device)

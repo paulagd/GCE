@@ -4,10 +4,11 @@ import pandas as pd
 import scipy.sparse as sp
 import torch.utils.data as data
 import torch
+from IPython import embed
 
 
 class PointData(data.Dataset):
-    def __init__(self, neg_set, is_training=True, neg_label_val=0.):
+    def __init__(self, neg_set, is_training=True, context=False, neg_label_val=0.):
         """
         Dataset formatter adapted point-wise algorithms
         Parameters
@@ -19,14 +20,25 @@ class PointData(data.Dataset):
         super(PointData, self).__init__()
         self.features_fill = []
         self.labels_fill = []
-        for u, i, r, js in neg_set:
-            self.features_fill.append([int(u), int(i)])
-            self.labels_fill.append(r)
-            
-            if is_training:
-                for j in js:
-                    self.features_fill.append([int(u), int(j)])
-                    self.labels_fill.append(neg_label_val)
+        self.context = context
+        if self.context:
+            for u, i, c, r, js in neg_set:
+                self.features_fill.append([int(u), int(i), int(c)])
+                self.labels_fill.append(r)
+
+                if is_training:
+                    for j in js:
+                        self.features_fill.append([int(u), int(j), int(c)])
+                        self.labels_fill.append(neg_label_val)
+        else:
+            for u, i, r, js in neg_set:
+                self.features_fill.append([int(u), int(i)])
+                self.labels_fill.append(r)
+
+                if is_training:
+                    for j in js:
+                        self.features_fill.append([int(u), int(j)])
+                        self.labels_fill.append(neg_label_val)
         self.labels_fill = np.array(self.labels_fill, dtype=np.float32)
 
     def __len__(self):
@@ -38,13 +50,13 @@ class PointData(data.Dataset):
 
         user = features[idx][0]
         item = features[idx][1]
+        context = [] if not self.context else features[idx][2]
         label = labels[idx]
-
-        return user, item, label
+        return user, item, context, label
 
 
 class PairData(data.Dataset):
-    def __init__(self, neg_set, is_training=True):
+    def __init__(self, neg_set, context=False, is_training=True):
         """
         Dataset formatter adapted pair-wise algorithms
         Parameters
@@ -54,14 +66,24 @@ class PairData(data.Dataset):
         """
         super(PairData, self).__init__()
         self.features_fill = []
+        self.context = context
 
-        for u, i, r, js in neg_set:
-            u, i, r = int(u), int(i), np.float32(1)
-            if is_training:
-                for j in js:
-                    self.features_fill.append([u, i, j, r])
-            else:
-                self.features_fill.append([u, i, i, r])
+        if self.context:
+            for u, i, c, r, js in neg_set:
+                u, i, c, r = int(u), int(i), int(c), np.float32(1)
+                if is_training:
+                    for j in js:
+                        self.features_fill.append([u, i, c, j, r])
+                else:
+                    self.features_fill.append([u, i, c, i, r])
+        else:
+            for u, i, r, js in neg_set:
+                u, i, r = int(u), int(i), np.float32(1)
+                if is_training:
+                    for j in js:
+                        self.features_fill.append([u, i, j, r])
+                else:
+                    self.features_fill.append([u, i, i, r])
 
     def __len__(self):
         return len(self.features_fill)
@@ -70,10 +92,11 @@ class PairData(data.Dataset):
         features = self.features_fill
         user = features[idx][0]
         item_i = features[idx][1]
-        item_j = features[idx][2]
-        label = features[idx][3]
+        context = [] if not self.context else features[idx][2]
+        item_j = features[idx][2] if not self.context else features[idx][3]
+        label = features[idx][3] if not self.context else features[idx][4]
 
-        return user, item_i, item_j, label
+        return user, item_i, context, item_j, label
 
 
 class UAEData(data.Dataset):

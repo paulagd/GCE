@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 /outputs/*
+/results/*
 /data/*
 /outputs_LASTFM/*
 /outputs_ML1M/*
