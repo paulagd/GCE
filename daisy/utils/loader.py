@@ -19,7 +19,8 @@ def convert_unique_idx(df, col):
     return df
 
 
-def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False):
+def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False,
+              gce_flag=False):
     """
     Method of loading certain raw data
     Parameters
@@ -240,7 +241,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     user_num = df['user'].nunique()
     item_num = df['item'].nunique()
 
-    print(f'Finish loading [{src}]-[{prepro}] dataset with [context == {context}]')
+    print(f'Finish loading [{src}]-[{prepro}] dataset with [context == {context}] and [GCE == {gce_flag}]')
 
     return df, user_num, item_num
 

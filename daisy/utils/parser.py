@@ -17,6 +17,10 @@ def parse_args():
                         action='store_true',
                         default=False,
                         help='activate to use GCE layer instead of current embbedding layer')
+    parser.add_argument('--mh',
+                        type=int,
+                        default=1,
+                        help='HOPS TO ENABLE -- MULTI HOP FUNCTION')
     parser.add_argument('--problem_type', 
                         type=str, 
                         default='point',
