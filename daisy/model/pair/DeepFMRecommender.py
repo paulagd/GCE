@@ -121,8 +121,8 @@ class PairDeepFM(nn.Module):
 
         y_fm = y_fm + self.u_bias(user) + self.i_bias(item) + self.bias_
 
-        if self.num_layers:
-            fm = self.deep_layers(fm)
+        # if self.num_layers:
+        #     fm = self.deep_layers(fm)
 
         y_deep = torch.cat((embed_user, embed_item), dim=-1)
         y_deep = self.deep_layers(y_deep)

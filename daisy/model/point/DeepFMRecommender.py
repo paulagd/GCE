@@ -7,6 +7,30 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+from daisy.model.GCE.gce import GCE
+from IPython import embed
+
+
+class MultiLayerPerceptron(torch.nn.Module):
+
+    def __init__(self, input_dim, embed_dims, dropout, output_layer=True):
+        super().__init__()
+        layers = list()
+        for embed_dim in embed_dims:
+            layers.append(torch.nn.Linear(input_dim, embed_dim))
+            layers.append(torch.nn.BatchNorm1d(embed_dim))
+            layers.append(torch.nn.ReLU())
+            layers.append(torch.nn.Dropout(p=dropout))
+            input_dim = embed_dim
+        if output_layer:
+            layers.append(torch.nn.Linear(input_dim, 1))
+        self.mlp = torch.nn.Sequential(*layers)
+
+    def forward(self, x):
+        """
+        :param x: Float tensor of size ``(batch_size, num_fields, embed_dim)``
+        """
+        return self.mlp(x)
 
 
 class PointDeepFM(nn.Module):
@@ -24,7 +48,13 @@ class PointDeepFM(nn.Module):
                  reg_2=0.,
                  loss_type='CL',
                  optimizer='adam',
-                 gpuid='0', 
+                 reindex=False,
+                 context_flag=False,
+                 X=None,
+                 A=None,
+                 GCE_flag=False,
+                 gpuid='0',
+                 mlp_dims=(16, 16),
                  early_stop=True):
         """
         Point-wise DeepFM Recommender Class
@@ -61,14 +91,29 @@ class PointDeepFM(nn.Module):
         self.loss_type = loss_type
         self.early_stop = early_stop
         self.optimizer = optimizer
+        self.mlp_dims = mlp_dims
+        self.reindex = reindex
+        self.GCE_flag = GCE_flag
 
-        self.embed_user = nn.Embedding(user_num, factors)
-        self.embed_item = nn.Embedding(max_dim, factors)
+        if reindex:
+            if GCE_flag:
+                print('GCE EMBEDDINGS DEFINED')
+                self.embeddings = GCE(max_dim, factors, X, A)
+            else:
+                self.embeddings = nn.Embedding(max_dim, factors)
+                self.bias = nn.Embedding(max_dim, 1)
+                self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
-        self.u_bias = nn.Embedding(user_num, 1)
-        self.i_bias = nn.Embedding(max_dim, 1)
+                nn.init.normal_(self.embeddings.weight, std=0.01)
+                nn.init.constant_(self.bias.weight, 0.0)
+        else:
+            self.embed_user = nn.Embedding(user_num, factors)
+            self.embed_item = nn.Embedding(max_dim, factors)
 
-        self.bias_ = nn.Parameter(torch.tensor([0.0]))
+            self.u_bias = nn.Embedding(user_num, 1)
+            self.i_bias = nn.Embedding(max_dim, 1)
+
+            self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
         fm_modules = []
         if self.batch_norm:
@@ -76,54 +121,56 @@ class PointDeepFM(nn.Module):
         fm_modules.append(nn.Dropout(self.dropout))
         self.fm_layers = nn.Sequential(*fm_modules)
 
-        deep_modules = []
-        in_dim = factors * 2   # user & item
-        for _ in range(self.num_layers):  # _ is dim if layers is list
-            out_dim = in_dim
-            deep_modules.append(nn.Linear(in_dim, out_dim))
-            in_dim = out_dim
-            if self.batch_norm:
-                deep_modules.append(nn.BatchNorm1d(out_dim))
-            if self.act_function == 'relu':
-                deep_modules.append(nn.ReLU())
-            elif self.act_function == 'sigmoid':
-                deep_modules.append(nn.Sigmoid())
-            elif self.act_function == 'tanh':
-                deep_modules.append(nn.Tanh())
-            deep_modules.append(nn.Dropout(self.dropout))
-
-        self.deep_layers = nn.Sequential(*deep_modules)
-        self.deep_out = nn.Linear(in_dim, 1, bias=False)
-
+        self.input_mlp = 3 * factors if context_flag else 2*factors
+        self.deep_layers = MultiLayerPerceptron(self.input_mlp, mlp_dims, self.dropout)
         self._init_weight()
 
     def _init_weight(self):
-        nn.init.normal_(self.embed_item.weight, std=0.01)
-        nn.init.normal_(self.embed_user.weight, std=0.01)
-        nn.init.constant_(self.u_bias.weight, 0.0)
-        nn.init.constant_(self.i_bias.weight, 0.0)
+        if self.reindex and not self.GCE_flag:
+            nn.init.normal_(self.embeddings.weight, std=0.01)
+            nn.init.constant_(self.bias.weight, 0.0)
+        elif not self.reindex:
+            nn.init.normal_(self.embed_item.weight, std=0.01)
+            nn.init.normal_(self.embed_user.weight, std=0.01)
+            nn.init.constant_(self.u_bias.weight, 0.0)
+            nn.init.constant_(self.i_bias.weight, 0.0)
 
-        # for deep layers
-        for m in self.deep_layers:
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_normal_(m.weight)
-        nn.init.xavier_normal_(self.deep_out.weight)
+        # # for deep layers
+        # for m in self.deep_layers:
+        #     if isinstance(m, nn.Linear):
+        #         nn.init.xavier_normal_(m.weight)
+        # nn.init.xavier_normal_(self.deep_out.weight)
 
-    def forward(self, user, item):
-        embed_user = self.embed_user(user)
-        embed_item = self.embed_item(item)
+    def forward(self, user, item, context):
 
-        fm = embed_user * embed_item
+        if self.reindex:
+            if context is None:
+                embeddings = self.embeddings(torch.stack((user, item), dim=1))
+            else:
+                embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
+            fm = embeddings.prod(dim=1)  # shape [256, 32]
+        else:
+            embed_user = self.embed_user(user)
+            embed_item = self.embed_item(item)
+            fm = embed_user * embed_item
+
         fm = self.fm_layers(fm)
         y_fm = fm.sum(dim=-1)
 
-        y_fm = y_fm + self.u_bias(user) + self.i_bias(item) + self.bias_
+        if self.reindex and not self.GCE_flag:
+            y_fm += y_fm + self.bias_
 
-        if self.num_layers:
-            fm = self.deep_layers(fm)
-
-        y_deep = torch.cat((embed_user, embed_item), dim=-1)
-        y_deep = self.deep_layers(y_deep)
+        elif not self.GCE_flag:
+            y_fm += y_fm + self.u_bias(user) + self.i_bias(item) + self.bias_
+         
+        # if self.num_layers:
+        #     fm = self.deep_layers(fm)
+        if self.reindex:
+            y_deep = embeddings.view(-1, self.input_mlp)  # torch.Size([256, 192])
+            y_deep = self.deep_layers(y_deep).squeeze()
+        else:
+            y_deep = torch.cat((embed_user, embed_item), dim=-1)
+            y_deep = self.deep_layers(y_deep)
 
         # since BCELoss will automatically transfer pred with sigmoid
         # there is no need to use extra nn.Sigmoid(pred)
@@ -131,74 +178,8 @@ class PointDeepFM(nn.Module):
 
         return pred.view(-1)
 
-    def fit(self, train_loader):
-        if torch.cuda.is_available():
-            self.cuda()
-        else:
-            self.cpu()
-
-        if self.optimizer == 'adam':
-            optimizer = optim.Adam(self.parameters(), lr=self.lr)
-
-        elif self.optimizer == 'SGD':
-            optimizer = optim.SGD(self.parameters(), lr=self.lr)
-        else:
-            raise ValueError(f'Invalid OPTIMIZER : {self.loss_type}')
-
-        if self.loss_type == 'CL':
-            criterion = nn.BCEWithLogitsLoss(reduction='sum')
-        elif self.loss_type == 'SL':
-            criterion = nn.MSELoss(reduction='sum')
-        else:
-            raise ValueError(f'Invalid loss type: {self.loss_type}')
-
-        last_loss = 0.
-        early_stopping_counter = 0
-        for epoch in range(1, self.epochs + 1):
-            self.train()
-
-            current_loss = 0.
-            # set process bar display
-            pbar = tqdm(train_loader)
-            pbar.set_description(f'[Epoch {epoch:03d}]')
-            for user, item, label in pbar:
-                if torch.cuda.is_available():
-                    user = user.cuda()
-                    item = item.cuda()
-                    label = label.cuda()
-                else:
-                    user = user.cpu()
-                    item = item.cpu()
-                    label = label.cpu()
-
-                self.zero_grad()
-                prediction = self.forward(user, item)
-
-                loss = criterion(prediction, label)
-                loss += self.reg_1 * (self.embed_item.weight.norm(p=1) +self.embed_user.weight.norm(p=1))
-                loss += self.reg_2 * (self.embed_item.weight.norm() +self.embed_user.weight.norm())
-
-                if torch.isnan(loss):
-                    raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')
-
-                loss.backward()
-                optimizer.step()
-
-                pbar.set_postfix(loss=loss.item())
-                current_loss += loss.item()
-
-            self.eval()
-            if (last_loss < current_loss) and self.early_stop:
-                early_stopping_counter += 1
-                if early_stopping_counter == 4:
-                    print('Satisfy early stop mechanism')
-                    break
-            else:
-                early_stopping_counter = 0
-            last_loss = current_loss
-
-    def predict(self, u, i):
-        pred = self.forward(u, i).cpu()
+    def predict(self, u, i, c):
+        pred = self.forward(u, i, c).cpu()
         
         return pred
 

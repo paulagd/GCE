@@ -20,6 +20,8 @@ python main.py --dataset $1 --algo_name fm --context --epochs $2 > results/no_co
 echo "DONE FM REINDEXED"
 python main.py --dataset $1 --algo_name nfm --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
 echo "DONE NFM ORIGINAL"
+python main.py --dataset $1 --algo_name deepfm --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
+echo "DONE DFM ORIGINAL"
 
 echo "Starting GRAPH experiments..."
 python main.py --dataset $1 --algo_name mf --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_mf_epochs=$2.txt
@@ -28,6 +30,8 @@ python main.py --dataset $1 --algo_name fm --gce --context --epochs $2 > results
 echo "DONE FM REINDEXED-GCE"
 python main.py --dataset $1 --algo_name nfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_nfm_epochs=$2.txt
 echo "DONE NFM REINDEXED-GCE"
+python main.py --dataset $1 --algo_name deepfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
+echo "DONE DFM REINDEXED-GCE"
 
 
 echo "Starting original EXTENDED CONTEXT experiments $1 ..."
@@ -39,6 +43,8 @@ python main.py --dataset $1 --algo_name fm --epochs $2 > results/context/outputs
 echo "DONE FM REINDEXED"
 python main.py --dataset $1 --algo_name nfm --epochs $2 > results/context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
 echo "DONE NFM ORIGINAL"
+python main.py --dataset $1 --algo_name deepfm --epochs $2 > results/context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
+echo "DONE DFM ORIGINAL"
 
 echo "Starting GRAPH experiments..."
 python main.py --dataset $1 --algo_name mf --gce --epochs $2 > results/context/outputs_$1/graph_$1_mf_epochs=$2.txt
@@ -47,6 +53,8 @@ python main.py --dataset $1 --algo_name fm --gce --epochs $2 > results/context/o
 echo "DONE FM REINDEXED-GCE"
 python main.py --dataset $1 --algo_name nfm --gce --epochs $2 > results/context/outputs_$1/graph_$1_nfm_epochs=$2.txt
 echo "DONE NFM REINDEXED-GCE"
+python main.py --dataset $1 --algo_name deepfm --gce --epochs $2 > results/context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
+echo "DONE DFM REINDEXED-GCE"
 
 #echo "Starting GRAPH experiments ML MULTIHOP 2 ..."
 #MF :      --prepro 10filter        --num_ng 8        --factors 92       --lr 0.0053
