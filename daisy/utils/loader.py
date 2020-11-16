@@ -11,6 +11,14 @@ from collections import defaultdict
 from IPython import embed
 
 
+def convert_unique_idx(df, col):
+    column_dict = {x: i for i, x in enumerate(df[col].unique())}
+    df[col] = df[col].apply(column_dict.get)
+    assert df[col].min() == 0
+    assert df[col].max() == len(column_dict) - 1
+    return df
+
+
 def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False):
     """
     Method of loading certain raw data
@@ -117,6 +125,8 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             prime.append([user, item, rating, timestamp])
         df = pd.DataFrame(prime, columns=['user', 'item', 'rating', 'timestamp'])
         del prime
+        df = convert_unique_idx(df, 'user')
+        df = convert_unique_idx(df, 'item')
         gc.collect()
 
     elif src == 'yelp':
@@ -126,7 +136,8 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             val = json.loads(line)
             prime.append([val['user_id'], val['business_id'], val['stars'], val['date']])
         df = pd.DataFrame(prime, columns=['user', 'item', 'rating', 'timestamp'])
-        df['timestamp'] = pd.to_datetime(df.timestamp)
+        # df['timestamp'] = pd.to_datetime(df.timestamp)
+        df['timestamp'] = pd.to_datetime(df.timestamp).astype(int)
         del prime
         gc.collect()
 

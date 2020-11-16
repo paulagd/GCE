@@ -39,6 +39,7 @@ class PointData(data.Dataset):
                     for j in js:
                         self.features_fill.append([int(u), int(j)])
                         self.labels_fill.append(neg_label_val)
+
         self.labels_fill = np.array(self.labels_fill, dtype=np.float32)
 
     def __len__(self):

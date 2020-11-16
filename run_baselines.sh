@@ -30,19 +30,19 @@
 #echo "DONE NFM ORIGINAL"
 
 echo "Starting EMBEDDING no context EXPERIMENTS on $1..."
-python main.py --dataset $1 --algo_name mf --context --epochs $2 > results/no_context/outputs_ml-100k/reindexed_$1_mf_epochs=$2.txt
+python main.py --dataset $1 --algo_name mf --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_mf_epochs=$2.txt
 echo "DONE MF REINDEXED"
-python main.py --dataset $1 --algo_name fm --context --epochs $2 > results/no_context/outputs_ml-100k/reindexed_$1_fm_epochs=$2.txt
+python main.py --dataset $1 --algo_name fm --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
 echo "DONE FM REINDEXED"
-python main.py --dataset $1 --algo_name nfm --context --epochs $2 > results/no_context/outputs_ml-100k/reindexed_$1_nfm_epochs=$2.txt
+python main.py --dataset $1 --algo_name nfm --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
 echo "DONE NFM ORIGINAL"
 
 echo "Starting GRAPH no context experiments on $1..."
-python main.py --dataset $1 --algo_name mf --gce --context --epochs $2 > results/no_context/outputs_ml-100k/graph_$1_mf_epochs=$2.txt
+python main.py --dataset $1 --algo_name mf --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_mf_epochs=$2.txt
 echo "DONE MF REINDEXED-GCE"
-python main.py --dataset $1 --algo_name fm --gce --context --epochs $2 > results/no_context/outputs_ml-100k/graph_$1_fm_epochs=$2.txt
+python main.py --dataset $1 --algo_name fm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_fm_epochs=$2.txt
 echo "DONE FM REINDEXED-GCE"
-python main.py --dataset $1 --algo_name nfm --gce --context --epochs $2 > results/no_context/outputs_ml-100k/graph_$1_nfm_epochs=$2.txt
+python main.py --dataset $1 --algo_name nfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_nfm_epochs=$2.txt
 echo "DONE NFM REINDEXED-GCE"
 
 
@@ -50,19 +50,19 @@ echo "DONE NFM REINDEXED-GCE"
 echo "Starting CONTEXT EXTENDED experiments  on $1 ..."
 
 echo "Starting EMBEDDING context EXPERIMENTS  on $1..."
-python main.py --dataset $1 --algo_name mf --epochs $2 > results/context/outputs_ml-100k/reindexed_$1_mf_epochs=$2.txt
+python main.py --dataset $1 --algo_name mf --epochs $2 > results/context/outputs_$1/reindexed_$1_mf_epochs=$2.txt
 echo "DONE MF REINDEXED"
-python main.py --dataset $1 --algo_name fm --epochs $2 > results/context/outputs_ml-100k/reindexed_$1_fm_epochs=$2.txt
+python main.py --dataset $1 --algo_name fm --epochs $2 > results/context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
 echo "DONE FM REINDEXED"
-python main.py --dataset $1 --algo_name nfm --epochs $2 > results/context/outputs_ml-100k/reindexed_$1_nfm_epochs=$2.txt
+python main.py --dataset $1 --algo_name nfm --epochs $2 > results/context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
 echo "DONE NFM ORIGINAL"
 
 echo "Starting GRAPH context experiments  on $1..."
-python main.py --dataset $1 --algo_name mf --gce --epochs $2 > results/context/outputs_ml-100k/graph_$1_mf_epochs=$2.txt
+python main.py --dataset $1 --algo_name mf --gce --epochs $2 > results/context/outputs_$1/graph_$1_mf_epochs=$2.txt
 echo "DONE MF REINDEXED-GCE"
-python main.py --dataset $1 --algo_name fm --gce --epochs $2 > results/context/outputs_ml-100k/graph_$1_fm_epochs=$2.txt
+python main.py --dataset $1 --algo_name fm --gce --epochs $2 > results/context/outputs_$1/graph_$1_fm_epochs=$2.txt
 echo "DONE FM REINDEXED-GCE"
-python main.py --dataset $1 --algo_name nfm --gce --epochs $2 > results/context/outputs_ml-100k/graph_$1_nfm_epochs=$2.txt
+python main.py --dataset $1 --algo_name nfm --gce --epochs $2 > results/context/outputs_$1/graph_$1_nfm_epochs=$2.txt
 echo "DONE NFM REINDEXED-GCE"
 
 

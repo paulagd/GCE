@@ -42,10 +42,14 @@ if __name__ == '__main__':
     ''' Test Process for Metrics Exporting '''
     df, users, items = load_rate(args.dataset, args.prepro, binary=True, context=args.context)
     if args.reindex:
+        df = df.astype(np.int64)
         df['item'] = df['item'] + users
         if args.context:
             df = add_last_clicked_item_context(df, users)
             df['context'] = df['context'] + items
+
+            # check last number is positive
+            assert df['item'].tail().values[-1] > 0
 
             # TODO: SHOULD I REINDEX THE CONTEXT?
             # np.max(data, axis=0) == array([      942,      2094,      2094,         1, 893286638])
@@ -55,15 +59,14 @@ if __name__ == '__main__':
     # temporary used for tuning test result
     # train_set = pd.read_csv(f'./experiment_data/train_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     # test_set = pd.read_csv(f'./experiment_data/test_{args.dataset}_{args.prepro}_{args.test_method}.dat')
-    if args.dataset in ['yelp']:
-        train_set['timestamp'] = pd.to_datetime(train_set['timestamp'])
-        test_set['timestamp'] = pd.to_datetime(test_set['timestamp'])
-        
     df = pd.concat([train_set, test_set], ignore_index=True)
 
     # user_num = df['user'].nunique()
     # item_num = df['item'].nunique()
     dims = np.max(df.to_numpy().astype(int), axis=0) + 1
+    if args.dataset in ['yelp']:
+        train_set['timestamp'] = pd.to_datetime(train_set['timestamp'], unit='ns')
+        test_set['timestamp'] = pd.to_datetime(test_set['timestamp'], unit='ns')
 
     # get ground truth
     test_ur = get_ur(test_set, context=args.context)

@@ -52,7 +52,7 @@ class Sampler(object):
                 neg_set.append([u, i, c, r, js]) if context else neg_set.append([u, i, r, js])
 
             return neg_set
-
+        
         user_num, item_num = np.max(sampled_df[['user', 'item']].to_numpy(), axis=0) + 1
 
         # IDEA: build_adj_mx
@@ -108,10 +108,13 @@ class Sampler(object):
                 else:
                     # maybe add other sample methods in future, uniform as default
                     # j = np.random.randint(item_num)
-                    j = np.random.randint(user_num, item_num) if self.reindex else np.random.randint(item_num)
-                    while (u, j) in pair_pos:
+                    try:
                         j = np.random.randint(user_num, item_num) if self.reindex else np.random.randint(item_num)
-                    js.append(j)
+                        while (u, j) in pair_pos:
+                            j = np.random.randint(user_num, item_num) if self.reindex else np.random.randint(item_num)
+                        js.append(j)
+                    except:
+                        embed()
             neg_set.append([u, i, c, r, js]) if context else neg_set.append([u, i, r, js])
 
         print(f'Finish negative samplings, sample number is {len(neg_set) * self.num_ng}......')
