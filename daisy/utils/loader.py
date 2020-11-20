@@ -257,7 +257,7 @@ def add_last_clicked_item_context(df, user_num):
     return new_df
 
 
-def get_ur(df, context=False):
+def get_ur(df, context=False, eval=False):
     """
     Method of getting user-rating pairs
     Parameters
@@ -270,7 +270,7 @@ def get_ur(df, context=False):
     """
     ur = defaultdict(set)
     for _, row in df.iterrows():
-        if context:
+        if context and not eval:
             ur[int(row['user']), int(row['context'])].add(int(row['item']))
         else:
             ur[int(row['user'])].add(int(row['item']))
@@ -352,7 +352,7 @@ def convert_npy_mat(user_num, item_num, df):
     return mat
 
 
-def build_candidates_set(test_ur, train_ur, item_pool, candidates_num=1000):
+def build_candidates_set(test_ur, train_ur, item_pool, candidates_num=1000, context_flag=False):
     """
     method of building candidate items for ranking
     Parameters
@@ -368,13 +368,25 @@ def build_candidates_set(test_ur, train_ur, item_pool, candidates_num=1000):
     test_ucands = defaultdict(list)
     for k, v in test_ur.items():
         sample_num = candidates_num - len(v) if len(v) < candidates_num else 0
-        sub_item_pool = item_pool - v - train_ur[k]  # remove GT & interacted (with same context)
-        sample_num = min(len(sub_item_pool), sample_num)
-        if sample_num == 0:
-            samples = random.sample(v, candidates_num)
-            test_ucands[k] = list(set(samples))
+        if context_flag:
+            user = k[0]
+            context = k[1]
+            sub_item_pool = item_pool - v - train_ur[user]  # remove GT & interacted 
+            sample_num = min(len(sub_item_pool), sample_num)
+            if sample_num == 0:
+                samples = random.sample(v, candidates_num)
+                test_ucands[(user, context)] = list(set(samples))
+            else:
+                samples = random.sample(sub_item_pool, sample_num)
+                test_ucands[(user, context)] = list(v | set(samples))
         else:
-            samples = random.sample(sub_item_pool, sample_num)
-            test_ucands[k] = list(v | set(samples))
-    
+            sub_item_pool = item_pool - v - train_ur[k]  # remove GT & interacted (with same context)
+            sample_num = min(len(sub_item_pool), sample_num)
+            if sample_num == 0:
+                samples = random.sample(v, candidates_num)
+                test_ucands[k] = list(set(samples))
+            else:
+                samples = random.sample(sub_item_pool, sample_num)
+                test_ucands[k] = list(v | set(samples))
+            
     return test_ucands

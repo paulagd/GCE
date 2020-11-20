@@ -13,17 +13,17 @@ echo "Starting original no context experiments $1 ..."
 #python main.py --dataset $1 --algo_name nfm --reindex --context > results/no_context/outputs_$1/original_$1_nfm.txt
 #echo "DONE NFM ORIGINAL"
 
-echo "Starting GRAPH experiments NO CONTEXT..."
-python main.py --dataset $1 --algo_name mf --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_mf_epochs=$2.txt
-echo "DONE MF REINDEXED-GCE"
-python main.py --dataset $1 --algo_name fm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_fm_epochs=$2.txt
-echo "DONE FM REINDEXED-GCE"
-python main.py --dataset $1 --algo_name nfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_nfm_epochs=$2.txt
-echo "DONE NFM REINDEXED-GCE"
-python main.py --dataset $1 --algo_name deepfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
-echo "DONE DFM REINDEXED-GCE"
+#echo "Starting GRAPH experiments NO CONTEXT..."
+#python main.py --dataset $1 --algo_name mf --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_mf_epochs=$2.txt
+#echo "DONE MF REINDEXED-GCE"
+#python main.py --dataset $1 --algo_name fm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_fm_epochs=$2.txt
+#echo "DONE FM REINDEXED-GCE"
+#python main.py --dataset $1 --algo_name nfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_nfm_epochs=$2.txt
+#echo "DONE NFM REINDEXED-GCE"
+#python main.py --dataset $1 --algo_name deepfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
+#echo "DONE DFM REINDEXED-GCE"
 
-echo "Starting GRAPH experiments..."
+echo "Starting GRAPH CONTEXT experiments..."
 python main.py --dataset $1 --algo_name mf --gce --epochs $2 > results/context/outputs_$1/graph_$1_mf_epochs=$2.txt
 echo "DONE MF REINDEXED-GCE"
 python main.py --dataset $1 --algo_name fm --gce --epochs $2 > results/context/outputs_$1/graph_$1_fm_epochs=$2.txt

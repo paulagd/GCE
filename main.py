@@ -72,8 +72,8 @@ if __name__ == '__main__':
         test_set['timestamp'] = pd.to_datetime(test_set['timestamp'], unit='ns')
 
     # get ground truth
-    test_ur = get_ur(test_set, context=args.context)
-    total_train_ur = get_ur(train_set, context=args.context)
+    test_ur = get_ur(test_set, context=args.context, eval=False)
+    total_train_ur = get_ur(train_set, context=args.context, eval=True)
     # initial candidate item pool
     item_pool = set(range(dims[0], dims[1])) if args.reindex else set(range(dims[1]))
     candidates_num = args.cand_num
@@ -356,7 +356,7 @@ if __name__ == '__main__':
 
     print('Start Calculating Metrics......')
 
-    test_ucands = build_candidates_set(test_ur, total_train_ur, item_pool, candidates_num)
+    test_ucands = build_candidates_set(test_ur, total_train_ur, item_pool, candidates_num, context_flag=args.context)
 
     # get predict result
     print('')
