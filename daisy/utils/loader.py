@@ -6,6 +6,7 @@ import random
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from tqdm import tqdm
 
 from collections import defaultdict
 from IPython import embed
@@ -38,6 +39,8 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     item_num : int, the number of items
     """
     df = pd.DataFrame()
+    # import mat73
+    # a = mat73.loadmat('data/gen-disease/genes_phenes.mat')
     # which dataset will use
     if src == 'ml-100k':
         df = pd.read_csv(f'./data/{src}/u.data', sep='\t', header=None,
@@ -246,13 +249,25 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     return df, user_num, item_num
 
 
-def add_last_clicked_item_context(df, user_num):
+def add_last_clicked_item_context(df):
     df['context'] = df['rating']
     df = df[['user', 'item', 'context', 'rating', 'timestamp']]
     data = df.to_numpy().astype(int)
+    # let space for film 0
+    assert data[:, 1].min() == data[:, 0].max() + 1
+    data[:, 1] = data[:, 1].astype(np.int) + 1
+    empty_film_idx = data[:, 1].min() - 1
+    assert data[:, 0].max() + 1 == empty_film_idx
+
     sorted_data = data[data[:, -1].argsort()]
-    # user_num == first item number
-    sorted_data[:, 2] = np.concatenate(([user_num], sorted_data[:-1][:, 1]))
+
+    for u in tqdm(np.unique(sorted_data[:, 0]), desc="mapping context"):
+        aux = sorted_data[sorted_data[:, 0] == u]
+        aux[:, 2] = np.insert(aux[:-1][:, 1], 0, empty_film_idx)
+        sorted_data[sorted_data[:, 0] == u] = aux
+
+    # # user_num == first item number
+    # sorted_data[:, 2] = np.concatenate(([user_num], sorted_data[:-1][:, 1]))
     new_df = pd.DataFrame(data=sorted_data, columns=list(df.columns))
     return new_df
 

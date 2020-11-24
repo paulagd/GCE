@@ -48,15 +48,12 @@ if __name__ == '__main__':
         df = df.astype(np.int64)
         df['item'] = df['item'] + users
         if args.context:
-            df = add_last_clicked_item_context(df, users)
-            df['context'] = df['context'] + items
+            df = add_last_clicked_item_context(df)
+            # TODO: SHOULD I REINDEX THE CONTEXT?
+            # df['context'] = df['context'] + items
 
             # check last number is positive
             assert df['item'].tail().values[-1] > 0
-
-            # TODO: SHOULD I REINDEX THE CONTEXT?
-            # np.max(data, axis=0) == array([      942,      2094,      2094,         1, 893286638])
-            # users, items = np.max(data, axis=0)[:2]
 
     train_set, test_set = split_test(df, args.test_method, args.test_size)
     # temporary used for tuning test result

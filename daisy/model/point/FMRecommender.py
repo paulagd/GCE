@@ -6,6 +6,24 @@ from IPython import embed
 from daisy.model.GCE.gce import GCE
 
 
+class FactorizationMachine(torch.nn.Module):
+
+    def __init__(self, reduce_sum=True):
+        super().__init__()
+        self.reduce_sum = reduce_sum
+
+    def forward(self, x):
+        """
+        :param x: Float tensor of size ``(batch_size, num_fields, embed_dim)``
+        """
+        square_of_sum = torch.sum(x, dim=1) ** 2
+        sum_of_square = torch.sum(x ** 2, dim=1)
+        ix = square_of_sum - sum_of_square
+        if self.reduce_sum:
+            ix = torch.sum(ix, dim=1, keepdim=True)
+        return 0.5 * ix
+
+
 class PointFM(nn.Module):
     def __init__(self, 
                  user_num, 
@@ -51,6 +69,7 @@ class PointFM(nn.Module):
 
         self.reindex = reindex
         self.GCE_flag = GCE_flag
+        self.fm = FactorizationMachine(reduce_sum=True)
 
         if reindex:
             if GCE_flag:
@@ -87,8 +106,8 @@ class PointFM(nn.Module):
                 embeddings = self.embeddings(torch.stack((user, item), dim=1))
             else:
                 embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
-
-            pred = embeddings.prod(dim=1).sum(dim=1, keepdim=True)
+            # pred = embeddings.prod(dim=1).sum(dim=1, keepdim=True)
+            pred = self.fm(embeddings)
 
             if not self.GCE_flag:
                 pred += self.bias(torch.stack((user, item), dim=1)).sum() + self.bias_
