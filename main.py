@@ -27,6 +27,7 @@ if __name__ == '__main__':
     if args.dataset == 'epinions':
         args.lr = 0.001
 
+    # p = multiprocessing.Pool(args.num_workers)
     # FIX SEED AND SELECT DEVICE
     seed = 1234
     if torch.cuda.is_available():
