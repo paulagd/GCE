@@ -17,6 +17,10 @@ def parse_args():
                         action='store_true',
                         default=False,
                         help='activate to use GCE layer instead of current embbedding layer')
+    parser.add_argument('--mf',
+                        action='store_true',
+                        default=False,
+                        help='activate to use MF in NFM ')
     parser.add_argument('--mh',
                         type=int,
                         default=1,

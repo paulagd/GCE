@@ -21,9 +21,13 @@
 
 ##sh run_one_model.sh dataset_name epochs algo_name
 
-echo "Starting EMBEDDING no context EXPERIMENTS on $1..."
-python main.py --dataset $1 --algo_name $3 --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_$3_epochs=$2.txt
-echo "DONE $1-$3 REINDEXED"
+#echo "Starting EMBEDDING no context ORIGINAL EXPERIMENTS on $1..."
+#python main.py --dataset $1 --algo_name $3 --context --reindex --epochs $2 > results/no_context/outputs_$1/original_$1_$3_epochs=$2.txt
+#echo "DONE $1-$3 ORIGINAL"
+#
+#echo "Starting EMBEDDING no context EXPERIMENTS on $1..."
+#python main.py --dataset $1 --algo_name $3 --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_$3_epochs=$2.txt
+#echo "DONE $1-$3 REINDEXED"
 
 echo "Starting GRAPH no context experiments on $1..."
 python main.py --dataset $1 --algo_name $3 --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_$3_epochs=$2.txt

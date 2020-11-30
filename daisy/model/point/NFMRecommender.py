@@ -47,7 +47,8 @@ class PointNFM(nn.Module):
                  GCE_flag=False,
                  early_stop=True,
                  X=None,
-                 A=None):
+                 A=None,
+                 mf=False):
         """
         Point-wise NFM Recommender Class
         Parameters
@@ -84,6 +85,7 @@ class PointNFM(nn.Module):
         self.early_stop = early_stop
         self.reindex = reindex
         self.GCE_flag = GCE_flag
+        self.mf_flag = mf
 
         os.environ['CUDA_VISIBLE_DEVICES'] = gpuid
         cudnn.benchmark = True
@@ -161,8 +163,10 @@ class PointNFM(nn.Module):
                 embeddings = self.embeddings(torch.stack((user, item), dim=1))
             else:
                 embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
-            # fm = embeddings.prod(dim=1)  # shape [256, 32]
-            fm = self.fm(embeddings)
+            if self.mf_flag:
+                fm = embeddings.prod(dim=1)  # shape [256, 32]
+            else:
+                fm = self.fm(embeddings)
         else:
             embed_user = self.embed_user(user)
             embed_item = self.embed_item(item)

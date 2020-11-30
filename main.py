@@ -190,7 +190,23 @@ if __name__ == '__main__':
                 reindex=args.reindex,
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
-                gpuid=args.gpu
+                gpuid=args.gpu,
+                mf=args.mf
+            )
+        elif args.algo_name == 'ncf':
+            layers = [len(dims[:-2])*64, 64, 32, 8] if not args.context else [len(dims[:-2])*64, 128, 64, 32, 8]
+            from daisy.model.point.NCF import NCF
+            model = NCF(
+                user_num,
+                max_dim,
+                factors=args.factors,
+                layers=layers,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
+                gpuid=args.gpu,
+                mf=args.mf
             )
         elif args.algo_name == 'deepfm':
             from daisy.model.point.DeepFMRecommender import PointDeepFM
