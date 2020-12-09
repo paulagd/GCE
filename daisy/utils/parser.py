@@ -17,6 +17,10 @@ def parse_args():
                         action='store_true',
                         default=False,
                         help='activate to use GCE layer instead of current embbedding layer')
+    parser.add_argument('--cut_down_data',
+                        action='store_true',
+                        default=False,
+                        help='activate to use half interactions per user --> reduce dataset size')
     parser.add_argument('--mf',
                         action='store_true',
                         default=False,

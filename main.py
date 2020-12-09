@@ -44,15 +44,13 @@ if __name__ == '__main__':
     time_log = open('time_log.txt', 'a') 
     
     ''' Test Process for Metrics Exporting '''
-    df, users, items = load_rate(args.dataset, args.prepro, binary=True, context=args.context, gce_flag=args.gce)
+    df, users, items = load_rate(args.dataset, args.prepro, binary=True, context=args.context, gce_flag=args.gce,
+                                 cut_down_data=args.cut_down_data)
     if args.reindex:
         df = df.astype(np.int64)
         df['item'] = df['item'] + users
         if args.context:
-            df = add_last_clicked_item_context(df)
-            # TODO: SHOULD I REINDEX THE CONTEXT?
-            # df['context'] = df['context'] + items
-
+            df = add_last_clicked_item_context(df, args.dataset)
             # check last number is positive
             assert df['item'].tail().values[-1] > 0
 
@@ -110,10 +108,9 @@ if __name__ == '__main__':
     # if args.algo_name == 'mostpop':
     #     from daisy.model.PopRecommender import MostPop
     #     model = MostPop(n=100)
+    user_num = dims[0]
+    max_dim = dims[2] if args.context else dims[1]
     if args.problem_type == 'point':
-        user_num = dims[0]
-        max_dim = dims[2] if args.context else dims[1]
-
         if args.algo_name == 'mf':
             from daisy.model.point.MFRecommender import PointMF
             model = PointMF(
@@ -194,7 +191,7 @@ if __name__ == '__main__':
                 mf=args.mf
             )
         elif args.algo_name == 'ncf':
-            layers = [len(dims[:-2])*64, 64, 32, 8] if not args.context else [len(dims[:-2])*64, 128, 64, 32, 8]
+            layers = [len(dims[:-2])*64, 64, 32, 8] if not args.context else [len(dims[:-2])*64, 64, 32, 8]
             from daisy.model.point.NCF import NCF
             model = NCF(
                 user_num,
@@ -208,6 +205,9 @@ if __name__ == '__main__':
                 gpuid=args.gpu,
                 mf=args.mf
             )
+        elif args.algo_name == 'ngcf':
+            from daisy.model.point.NGCF import NGCF
+            model = NGCF(user_num, max_dim, df)
         elif args.algo_name == 'deepfm':
             from daisy.model.point.DeepFMRecommender import PointDeepFM
             model = PointDeepFM(
@@ -265,7 +265,7 @@ if __name__ == '__main__':
             from daisy.model.pair.MFRecommender import PairMF
             model = PairMF(
                 user_num, 
-                item_num,
+                max_dim,
                 factors=args.factors,
                 epochs=args.epochs,
                 lr=args.lr,
@@ -282,7 +282,7 @@ if __name__ == '__main__':
             from daisy.model.pair.FMRecommender import PairFM
             model = PairFM(
                 user_num, 
-                item_num,
+                max_dim,
                 factors=args.factors,
                 epochs=args.epochs,
                 lr=args.lr,
@@ -299,7 +299,7 @@ if __name__ == '__main__':
             from daisy.model.pair.NeuMFRecommender import PairNeuMF
             model = PairNeuMF(
                 user_num, 
-                item_num,
+                max_dim,
                 factors=args.factors,
                 num_layers=args.num_layers,
                 q=args.dropout,
@@ -314,7 +314,7 @@ if __name__ == '__main__':
             from daisy.model.pair.NFMRecommender import PairNFM
             model = PairNFM(
                 user_num, 
-                item_num,
+                max_dim,
                 factors=args.factors,
                 act_function=args.act_func,
                 num_layers=args.num_layers,

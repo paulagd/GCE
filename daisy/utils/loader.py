@@ -20,8 +20,16 @@ def convert_unique_idx(df, col):
     return df
 
 
+def cut_down_data_half(df):
+    cut_df = pd.DataFrame([])
+    for u in np.unique(df.user):
+        aux = df[df['user'] == u].copy()
+        cut_df = cut_df.append(df.sample(int(len(aux) / 2)))
+    return cut_df
+
+
 def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False,
-              gce_flag=False):
+              gce_flag=False, cut_down_data=False):
     """
     Method of loading certain raw data
     Parameters
@@ -45,6 +53,8 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     if src == 'ml-100k':
         df = pd.read_csv(f'./data/{src}/u.data', sep='\t', header=None,
                          names=['user', 'item', 'rating', 'timestamp'], engine='python')
+        if cut_down_data:
+            df = cut_down_data_half(df)  # from 100k to 49.760 interactions
 
     elif src == 'ml-1m':
         df = pd.read_csv(f'./data/{src}/ratings.dat', sep='::', header=None, 
@@ -59,9 +69,26 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
     elif src == 'ml-20m':
         df = pd.read_csv(f'./data/{src}/ratings.csv')
-        df.rename(columns={'userId':'user', 'movieId':'item'}, inplace=True)
+        df.rename(columns={'userId': 'user', 'movieId': 'item'}, inplace=True)
         # df = df.query('rating >= 4').reset_index(drop=True)
+    elif src == 'frappe':
+        # http://web.archive.org/web/20180422190150/http://baltrunas.info/research-menu/frappe
+        # columNames = ['labels', 'user', 'item', 'daytime', 'weekday', 'isweekend', 'homework', 'cost', 'weather',
+        #               'country', 'city']
+        # df = pd.read_csv(f'./data/{src}/{src}.csv', sep=' ', engine='python', names=columNames)
+        df = pd.read_csv(f'./data/{src}/{src}.csv', sep='\t')
 
+        #TODO: select one context
+        if context:
+            df = df[['user', 'item', 'daytime']]
+            df = convert_unique_idx(df, 'daytime')
+        else:
+            df = df[['user', 'item']]
+        # treat weight as interaction, as 1
+        df['rating'] = 1.0
+        df['timestamp'] = 1
+
+        # fake timestamp column
     elif src == 'netflix':
         cnt = 0
         tmp_file = open(f'./data/{src}/training_data.csv', 'w')
@@ -249,22 +276,29 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     return df, user_num, item_num
 
 
-def add_last_clicked_item_context(df):
-    df['context'] = df['rating']
+def add_last_clicked_item_context(df, dataset=''):
+    df['context'] = df[df.columns[2]] if dataset == 'frappe' else df['rating']
+    timestamp_flag = False if dataset == 'frappe' else True
     df = df[['user', 'item', 'context', 'rating', 'timestamp']]
     data = df.to_numpy().astype(int)
-    # let space for film 0
     assert data[:, 1].min() == data[:, 0].max() + 1
-    data[:, 1] = data[:, 1].astype(np.int) + 1
-    empty_film_idx = data[:, 1].min() - 1
-    assert data[:, 0].max() + 1 == empty_film_idx
+    # let space for film UNKNOWN
+    # data[:, 1] = data[:, 1].astype(np.int) + 1
+    # empty_film_idx = data[:, 1].min() - 1
+    empty_film_idx = data[:, 1].max() + 1
+    assert data[:, 1].max() + 1 == empty_film_idx
 
     sorted_data = data[data[:, -1].argsort()]
 
-    for u in tqdm(np.unique(sorted_data[:, 0]), desc="mapping context"):
-        aux = sorted_data[sorted_data[:, 0] == u]
-        aux[:, 2] = np.insert(aux[:-1][:, 1], 0, empty_film_idx)
-        sorted_data[sorted_data[:, 0] == u] = aux
+    if not timestamp_flag:
+        data[:, 2] = data[:, 2] + (empty_film_idx + 1)
+        sorted_data = data.copy()
+    else:
+        for u in tqdm(np.unique(sorted_data[:, 0]), desc="mapping context"):
+            aux = sorted_data[sorted_data[:, 0] == u]
+            # if timestamp_flag:
+            aux[:, 2] = np.insert(aux[:-1][:, 1], 0, empty_film_idx)
+            sorted_data[sorted_data[:, 0] == u] = aux
 
     # # user_num == first item number
     # sorted_data[:, 2] = np.concatenate(([user_num], sorted_data[:-1][:, 1]))

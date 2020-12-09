@@ -79,13 +79,18 @@ class PairFM(nn.Module):
         self.loss_type = loss_type
         self.early_stop = early_stop
 
-    def forward(self, u, i, j):
+    def forward(self, u, i, j, context):
 
         if self.reindex:
             # embed()
-            embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
-            embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
-            # inner product part
+            if context is None:
+                embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
+                embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
+            else:
+                embeddings_ui = self.embeddings(torch.stack((u, i, context), dim=1))
+                embeddings_uj = self.embeddings(torch.stack((u, j, context), dim=1))
+                
+            # inner prod part
             pred_i = embeddings_ui.prod(dim=1).sum(dim=1, keepdim=True)
             pred_j = embeddings_uj.prod(dim=1).sum(dim=1, keepdim=True)
             # add bias

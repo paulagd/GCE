@@ -35,9 +35,11 @@ def train(args, model, train_loader, device, context_flag):
             item_i = item_i.to(device)
             item_j = item_j.to(device)
             label = label.to(device)
+            context = None
+            # context = context.to(device) if context_flag else None
 
             model.zero_grad()
-            pred_i, pred_j = model(user, item_i, item_j)
+            pred_i, pred_j = model(user, item_i, item_j, context)
 
             if args.loss_type == 'BPR':
                 loss = -(pred_i - pred_j).sigmoid().log().sum()

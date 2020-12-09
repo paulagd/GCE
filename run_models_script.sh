@@ -22,6 +22,8 @@ python main.py --dataset $1 --algo_name nfm --context --epochs $2 > results/no_c
 echo "DONE NFM ORIGINAL"
 python main.py --dataset $1 --algo_name deepfm --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
 echo "DONE DFM ORIGINAL"
+python main.py --dataset $1 --algo_name ncf --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_ncf_epochs=$2.txt
+echo "DONE NCF ORIGINAL"
 
 echo "Starting GRAPH experiments..."
 python main.py --dataset $1 --algo_name mf --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_mf_epochs=$2.txt
@@ -32,6 +34,8 @@ python main.py --dataset $1 --algo_name nfm --gce --context --epochs $2 > result
 echo "DONE NFM REINDEXED-GCE"
 python main.py --dataset $1 --algo_name deepfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
 echo "DONE DFM REINDEXED-GCE"
+python main.py --dataset $1 --algo_name ncf --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_ncf_epochs=$2.txt
+echo "DONE NCF REINDEXED-GCE"
 
 
 echo "Starting original EXTENDED CONTEXT experiments $1 ..."
@@ -45,6 +49,8 @@ python main.py --dataset $1 --algo_name nfm --epochs $2 > results/context/output
 echo "DONE NFM ORIGINAL"
 python main.py --dataset $1 --algo_name deepfm --epochs $2 > results/context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
 echo "DONE DFM ORIGINAL"
+python main.py --dataset $1 --algo_name ncf --epochs $2 > results/context/outputs_$1/reindexed_$1_ncf_epochs=$2.txt
+echo "DONE NCF ORIGINAL"
 
 echo "Starting GRAPH experiments..."
 python main.py --dataset $1 --algo_name mf --gce --epochs $2 > results/context/outputs_$1/graph_$1_mf_epochs=$2.txt
@@ -55,6 +61,8 @@ python main.py --dataset $1 --algo_name nfm --gce --epochs $2 > results/context/
 echo "DONE NFM REINDEXED-GCE"
 python main.py --dataset $1 --algo_name deepfm --gce --epochs $2 > results/context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
 echo "DONE DFM REINDEXED-GCE"
+python main.py --dataset $1 --algo_name ncf --gce --epochs $2 > results/context/outputs_$1/graph_$1_ncf_epochs=$2.txt
+echo "DONE NCF REINDEXED-GCE"
 
 #echo "Starting GRAPH experiments ML MULTIHOP 2 ..."
 #MF :      --prepro 10filter        --num_ng 8        --factors 92       --lr 0.0053

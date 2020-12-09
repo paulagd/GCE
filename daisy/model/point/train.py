@@ -41,7 +41,6 @@ def train(args, model, train_loader, device, context_flag):
             item = item.to(device)
             context = context.to(device) if context_flag else None
             label = label.to(device)
-            # embed()
             model.zero_grad()
             try:
                 prediction = model(user, item, context)
