@@ -29,13 +29,12 @@ def train(args, model, train_loader, device, context_flag):
         # set process bar display
         pbar = tqdm(train_loader)
         pbar.set_description(f'[Epoch {epoch:03d}]')
-        for user, item_i, item_j, label in pbar:
-
+        for user, item_i, context, item_j, label in pbar:
             user = user.to(device)
             item_i = item_i.to(device)
             item_j = item_j.to(device)
+            context = context.to(device) if context_flag else None
             label = label.to(device)
-            context = None
             # context = context.to(device) if context_flag else None
 
             model.zero_grad()

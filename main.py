@@ -101,7 +101,7 @@ if __name__ == '__main__':
         training_mat = convert_npy_mat(dims[0], dims[1], train_set)
     else:
         if args.problem_type == 'pair':
-            train_dataset = PairData(neg_set, is_training=True)
+            train_dataset = PairData(neg_set, is_training=True, context=args.context)
         else:
             train_dataset = PointData(neg_set, is_training=True, context=args.context)
 
@@ -109,6 +109,7 @@ if __name__ == '__main__':
     #     from daisy.model.PopRecommender import MostPop
     #     model = MostPop(n=100)
     user_num = dims[0]
+    # embed()
     max_dim = dims[2] if args.context else dims[1]
     if args.problem_type == 'point':
         if args.algo_name == 'mf':
@@ -329,7 +330,45 @@ if __name__ == '__main__':
                 reindex=args.reindex,
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
-                gpuid=args.gpu
+                gpuid=args.gpu,
+                mf=args.mf
+            )
+        elif args.algo_name == 'ncf':
+            layers = [len(dims[:-2])*64, 64, 32, 8] if not args.context else [len(dims[:-2])*64, 64, 32, 8]
+            from daisy.model.pair.NCFRecommender import PairNCF
+            model = PairNCF(
+                user_num,
+                max_dim,
+                factors=args.factors,
+                layers=layers,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
+                gpuid=args.gpu,
+                mf=args.mf
+            )
+        elif args.algo_name == 'deepfm':
+            from daisy.model.pair.DeepFMRecommender import PairDeepFM
+            model = PairDeepFM(
+                user_num,
+                max_dim,
+                factors=args.factors,
+                act_activation=args.act_func,
+                num_layers=args.num_layers,
+                batch_norm=args.no_batch_norm,
+                q=args.dropout,
+                epochs=args.epochs,
+                lr=args.lr,
+                reg_1=args.reg_1,
+                reg_2=args.reg_2,
+                loss_type=args.loss_type,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                context_flag=args.context,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
+                gpuid=args.gpu,
             )
         else:
             raise ValueError('Invalid algorithm name')
@@ -413,7 +452,6 @@ if __name__ == '__main__':
                 user_u = user_u.to(device)
                 item_i = item_i.to(device)
                 context = context.to(device) if args.context else None
-
                 prediction = model.predict(user_u, item_i, context)
                 _, indices = torch.topk(prediction, args.topk)
                 top_n = torch.take(torch.tensor(test_ucands[u]), indices).cpu().numpy()

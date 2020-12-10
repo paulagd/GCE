@@ -5,26 +5,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
-from daisy.model.GCE.gce import GCE
+from daisy.model.GCE.gce import GCE, FactorizationMachine
 from IPython import embed
-
-
-class FactorizationMachine(torch.nn.Module):
-
-    def __init__(self, reduce_sum=True):
-        super().__init__()
-        self.reduce_sum = reduce_sum
-
-    def forward(self, x):
-        """
-        :param x: Float tensor of size ``(batch_size, num_fields, embed_dim)``
-        """
-        square_of_sum = torch.sum(x, dim=1) ** 2
-        sum_of_square = torch.sum(x ** 2, dim=1)
-        ix = square_of_sum - sum_of_square
-        if self.reduce_sum:
-            ix = torch.sum(ix, dim=1, keepdim=True)
-        return 0.5 * ix
 
 
 class PointNFM(nn.Module):
@@ -121,8 +103,8 @@ class PointNFM(nn.Module):
             out_dim = in_dim # dim
             MLP_modules.append(nn.Linear(in_dim, out_dim))
             in_dim = out_dim
-            if self.batch_norm:
-                MLP_modules.append(nn.BatchNorm1d(out_dim))
+            # if self.batch_norm:
+            #     MLP_modules.append(nn.BatchNorm1d(out_dim))
             if self.act_function == 'relu':
                 MLP_modules.append(nn.ReLU())
             elif self.act_function == 'sigmoid':

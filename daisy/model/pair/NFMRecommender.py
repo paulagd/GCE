@@ -1,7 +1,7 @@
 import os
 import torch
 import torch.nn as nn
-from daisy.model.GCE.gce import GCE
+from daisy.model.GCE.gce import GCE, FactorizationMachine
 import torch.backends.cudnn as cudnn
 from IPython import embed
 
@@ -9,7 +9,7 @@ from IPython import embed
 class PairNFM(nn.Module):
     def __init__(self,
                  user_num, 
-                 item_num, 
+                 max_dim,
                  factors, 
                  act_function,
                  num_layers,
@@ -25,13 +25,14 @@ class PairNFM(nn.Module):
                  X=None,
                  A=None,
                  GCE_flag=False,
+                 mf=False,
                  early_stop=True):
         """
         Pair-wise NFM Recommender Class
         Parameters
         ----------
         user_num : int, the number of users
-        item_num : int, the number of items
+        max_dim : int, the number of items
         factors : int, the number of latent factor
         act_function : str, activation function for hidden layer
         num_layers : int, number of hidden layers
@@ -61,24 +62,30 @@ class PairNFM(nn.Module):
         self.reg_2 = reg_2
         self.epochs = epochs
         self.loss_type = loss_type
+        self.early_stop = early_stop
         self.reindex = reindex
         self.GCE_flag = GCE_flag
+        self.mf_flag = mf
+
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpuid
+        cudnn.benchmark = True
 
         if reindex:
+            self.fm = FactorizationMachine(reduce_sum=False)
             if self.GCE_flag:
                 print('GCE EMBEDDINGS DEFINED')
-                self.embeddings = GCE(user_num + item_num, factors, X, A)
+                self.embeddings = GCE(max_dim, factors, X, A)
             else:
-                self.embeddings = nn.Embedding(user_num + item_num, factors)
-                # self.bias = nn.Embedding(user_num + item_num, 1)
+                self.embeddings = nn.Embedding(max_dim, factors)
+                self.bias = nn.Embedding(max_dim, 1)
                 self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
         else:
             self.embed_user = nn.Embedding(user_num, factors)
-            self.embed_item = nn.Embedding(item_num, factors)
+            self.embed_item = nn.Embedding(max_dim, factors)
 
             self.u_bias = nn.Embedding(user_num, 1)
-            self.i_bias = nn.Embedding(item_num, 1)
+            self.i_bias = nn.Embedding(max_dim, 1)
 
             self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
@@ -91,11 +98,11 @@ class PairNFM(nn.Module):
         MLP_modules = []
         in_dim = factors
         for _ in range(self.num_layers):  # dim
-            out_dim = in_dim # dim
+            out_dim = in_dim  # dim
             MLP_modules.append(nn.Linear(in_dim, out_dim))
             in_dim = out_dim
-            if self.batch_norm:
-                MLP_modules.append(nn.BatchNorm1d(out_dim))
+            # if self.batch_norm:
+            #     MLP_modules.append(nn.BatchNorm1d(out_dim))
             if self.act_function == 'relu':
                 MLP_modules.append(nn.ReLU())
             elif self.act_function == 'sigmoid':
@@ -104,17 +111,16 @@ class PairNFM(nn.Module):
                 MLP_modules.append(nn.Tanh())
             MLP_modules.append(nn.Dropout(self.dropout))
         self.deep_layers = nn.Sequential(*MLP_modules)
-        predict_size = factors # layers[-1] if layers else factors
+        predict_size = factors  # layers[-1] if layers else factors
 
         self.prediction = nn.Linear(predict_size, 1, bias=False)
 
         self._init_weight()
 
     def _init_weight(self):
-
         if self.reindex and not self.GCE_flag:
             nn.init.normal_(self.embeddings.weight, std=0.01)
-            # nn.init.constant_(self.bias.weight, 0.0)
+            nn.init.constant_(self.bias.weight, 0.0)
         elif not self.reindex:
             nn.init.normal_(self.embed_item.weight, std=0.01)
             nn.init.normal_(self.embed_user.weight, std=0.01)
@@ -122,7 +128,7 @@ class PairNFM(nn.Module):
             nn.init.constant_(self.i_bias.weight, 0.0)
 
         # for deep layers
-        if self.num_layers > 0:
+        if self.num_layers > 0:  # len(self.layers)
             for m in self.deep_layers:
                 if isinstance(m, nn.Linear):
                     nn.init.xavier_normal_(m.weight)
@@ -130,38 +136,46 @@ class PairNFM(nn.Module):
         else:
             nn.init.constant_(self.prediction.weight, 1.0)
 
-    def forward(self, u, i, j):
-        if self.reindex:
-            embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
-            embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
-            # ix = torch.bmm(embeddings[:, :1, :], embeddings[:, 1:, :].permute(0, 2, 1))
-            pred_i = embeddings_ui.prod(dim=1)
-            pred_j = embeddings_uj.prod(dim=1)
+    def forward(self, u, i, j, c, inference=False):
+        pred_i = self._out(u, i, c)
+        if not inference:
+            pred_j = self._out(u, j, c)
         else:
-            user = self.embed_user(u)
-            item_i = self.embed_item(i)
-            item_j = self.embed_item(j)
-            # inner product part
-            pred_i = (user * item_i)
-            pred_j = (user * item_j)
+            pred_j = pred_i
 
-        pred_i = self.FM_layers(pred_i)
-        pred_j = self.FM_layers(pred_j)
+        return pred_i, pred_j
+
+    def _out(self, user, item, context):
+        if self.reindex:
+            if context is None:
+                embeddings = self.embeddings(torch.stack((user, item), dim=1))
+            else:
+                embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
+            if self.mf_flag:
+                fm = embeddings.prod(dim=1)  # shape [256, 32]
+            else:
+                fm = self.fm(embeddings)
+        else:
+            embed_user = self.embed_user(user)
+            embed_item = self.embed_item(item)
+            fm = embed_user * embed_item
+
+        fm = self.FM_layers(fm)
 
         if self.num_layers:
-            pred_i = self.deep_layers(pred_i)
-            pred_j = self.deep_layers(pred_j)
+            fm = self.deep_layers(fm)
 
-        if not self.reindex:
-            pred_i += self.u_bias(u) + self.i_bias(i) + self.bias_
-            pred_j += self.u_bias(u) + self.i_bias(j) + self.bias_
+        if self.reindex and not self.GCE_flag:
+            fm += self.bias_
 
-        pred_i = self.prediction(pred_i)
-        pred_j = self.prediction(pred_j)
+        elif not self.GCE_flag:
+            fm += self.u_bias(user) + self.i_bias(item) + self.bias_
 
-        return pred_i.view(-1), pred_j.view(-1)
+        pred = self.prediction(fm)
 
-    def predict(self, u, i):
-        pred_i, _ = self.forward(u, i, i)
+        return pred.view(-1)
+
+    def predict(self, u, i, c):
+        pred_i, _ = self.forward(u, i, i, c, inference=True)
 
         return pred_i.cpu()

@@ -3,7 +3,7 @@
 #CUDA_VISIBLE_DEVICES=1
 ##sh run_models_script.sh dataset_name epochs
 
-
+#mkdir ./cutdown
 echo "Starting original no context experiments $1 ..."
 
 #python main.py --dataset $1 --algo_name mf --reindex --context> results/no_context/outputs_$1/original_$1_mf.txt

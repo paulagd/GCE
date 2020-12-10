@@ -7,30 +7,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
-from daisy.model.GCE.gce import GCE
+from daisy.model.GCE.gce import GCE, FactorizationMachine, MultiLayerPerceptron
 from IPython import embed
-
-
-class MultiLayerPerceptron(torch.nn.Module):
-
-    def __init__(self, input_dim, embed_dims, dropout, output_layer=True):
-        super().__init__()
-        layers = list()
-        for embed_dim in embed_dims:
-            layers.append(torch.nn.Linear(input_dim, embed_dim))
-            layers.append(torch.nn.BatchNorm1d(embed_dim))
-            layers.append(torch.nn.ReLU())
-            layers.append(torch.nn.Dropout(p=dropout))
-            input_dim = embed_dim
-        if output_layer:
-            layers.append(torch.nn.Linear(input_dim, 1))
-        self.mlp = torch.nn.Sequential(*layers)
-
-    def forward(self, x):
-        """
-        :param x: Float tensor of size ``(batch_size, num_fields, embed_dim)``
-        """
-        return self.mlp(x)
 
 
 class PointDeepFM(nn.Module):
@@ -141,8 +119,11 @@ class PointDeepFM(nn.Module):
         #         nn.init.xavier_normal_(m.weight)
         # nn.init.xavier_normal_(self.deep_out.weight)
 
-    def forward(self, user, item, context):
+    def forward(self, u, i, c):
 
+        return self._deepfm_out(u, i, c)
+
+    def _deepfm_out(self, user, item, context):
         if self.reindex:
             if context is None:
                 embeddings = self.embeddings(torch.stack((user, item), dim=1))
@@ -162,7 +143,7 @@ class PointDeepFM(nn.Module):
 
         elif not self.GCE_flag:
             y_fm += y_fm + self.u_bias(user) + self.i_bias(item) + self.bias_
-         
+
         # if self.num_layers:
         #     fm = self.deep_layers(fm)
         if self.reindex:

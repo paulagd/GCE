@@ -1,7 +1,7 @@
 import os
 import torch
 import torch.nn as nn
-from daisy.model.GCE.gce import GCE
+from daisy.model.GCE.gce import GCE, FactorizationMachine
 import torch.backends.cudnn as cudnn
 from IPython import embed
 
@@ -9,7 +9,7 @@ from IPython import embed
 class PairFM(nn.Module):
     def __init__(self,
                  user_num, 
-                 item_num, 
+                 max_dim,
                  factors=84, 
                  epochs=20, 
                  lr=0.001, 
@@ -48,33 +48,35 @@ class PairFM(nn.Module):
         self.reg_2 = reg_2
         self.reindex = reindex
         self.GCE_flag = GCE_flag
+        self.fm = FactorizationMachine(reduce_sum=True)
 
-        if reindex:
-            if GCE_flag:
-                print('GCE EMBEDDINGS DEFINED')
-                self.embeddings = GCE(user_num + item_num, factors, X, A)
-            else:
-                self.embeddings = nn.Embedding(user_num + item_num, factors)
-                self.bias = nn.Embedding(user_num + item_num, 1)
+        if GCE_flag:
+            print('GCE EMBEDDINGS DEFINED')
+            self.embeddings = GCE(max_dim, factors, X, A) if reindex else ValueError(f'Can not use GCE with'
+                                                                                                 f'reindex=False')
+        else:
+            if reindex:
+                self.embeddings = nn.Embedding(max_dim, factors)
+                self.bias = nn.Embedding(max_dim, 1)
                 self.bias_ = nn.Parameter(torch.tensor([0.0]))
                 # init weight
                 nn.init.normal_(self.embeddings.weight, std=0.01)
                 nn.init.constant_(self.bias.weight, 0.0)
-        else:
+            else:
 
-            self.embed_user = nn.Embedding(user_num, factors)
-            self.embed_item = nn.Embedding(item_num, factors)
+                self.embed_user = nn.Embedding(user_num, factors)
+                self.embed_item = nn.Embedding(max_dim, factors)
 
-            self.u_bias = nn.Embedding(user_num, 1)
-            self.i_bias = nn.Embedding(item_num, 1)
+                self.u_bias = nn.Embedding(user_num, 1)
+                self.i_bias = nn.Embedding(max_dim, 1)
 
-            self.bias_ = nn.Parameter(torch.tensor([0.0]))
+                self.bias_ = nn.Parameter(torch.tensor([0.0]))
 
-            # init weight
-            nn.init.normal_(self.embed_user.weight, std=0.01)
-            nn.init.normal_(self.embed_item.weight, std=0.01)
-            nn.init.constant_(self.u_bias.weight, 0.0)
-            nn.init.constant_(self.i_bias.weight, 0.0)
+                # init weight
+                nn.init.normal_(self.embed_user.weight, std=0.01)
+                nn.init.normal_(self.embed_item.weight, std=0.01)
+                nn.init.constant_(self.u_bias.weight, 0.0)
+                nn.init.constant_(self.i_bias.weight, 0.0)
 
         self.loss_type = loss_type
         self.early_stop = early_stop
@@ -91,8 +93,11 @@ class PairFM(nn.Module):
                 embeddings_uj = self.embeddings(torch.stack((u, j, context), dim=1))
                 
             # inner prod part
-            pred_i = embeddings_ui.prod(dim=1).sum(dim=1, keepdim=True)
-            pred_j = embeddings_uj.prod(dim=1).sum(dim=1, keepdim=True)
+            pred_i = self.fm(embeddings_ui)
+            pred_j = self.fm(embeddings_uj)
+
+            # pred_i = embeddings_ui.prod(dim=1).sum(dim=1, keepdim=True)
+            # pred_j = embeddings_uj.prod(dim=1).sum(dim=1, keepdim=True)
             # add bias
             # if not self.GCE_flag:
             #     pred_i += self.bias(torch.stack((u, i), dim=1)).sum() + self.bias_
@@ -112,7 +117,7 @@ class PairFM(nn.Module):
 
         return pred_i.view(-1), pred_j.view(-1)
 
-    def predict(self, u, i):
-        pred_i, _ = self.forward(u, i, i)
+    def predict(self, u, i, c):
+        pred_i, _ = self.forward(u, i, i, c)
 
         return pred_i.cpu()

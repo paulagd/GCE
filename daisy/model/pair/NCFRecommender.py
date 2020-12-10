@@ -5,15 +5,15 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
-from daisy.model.GCE.gce import GCE, FactorizationMachine
+from daisy.model.GCE.gce import GCE, FactorizationMachine, MultiLayerPerceptron
 from IPython import embed
 
 
-class NCF(nn.Module):
+class PairNCF(nn.Module):
 
     def __init__(self, user_num, max_dim, factors, layers=[128, 64, 32, 8], reindex=False, GCE_flag=False, X=None,
                  A=None, mf=False, gpuid='0'):
-        super(NCF, self).__init__()
+        super(PairNCF, self).__init__()
         os.environ['CUDA_VISIBLE_DEVICES'] = gpuid
         cudnn.benchmark = True
 
@@ -38,8 +38,16 @@ class NCF(nn.Module):
         for From, To in zip(layers[:-1], layers[1:]):
             self.fc_layers.append(nn.Linear(From, To))
 
-    def forward(self, u, i, c):
+    def forward(self, user, item_i, item_j, context, inference=False):
+        pred_i = self._out(user, item_i, context)
+        if not inference:
+            pred_j = self._out(user, item_j, context)
+        else:
+            pred_j = pred_i
 
+        return pred_i, pred_j
+
+    def _out(self, u, i, c):
         if self.reindex:
             if c is None:
                 embeddings = self.embeddings(torch.stack((u, i), dim=1))
@@ -61,6 +69,6 @@ class NCF(nn.Module):
         return prediction.flatten()
 
     def predict(self, u, i, c):
-        pred = self.forward(u, i, c).cpu()
+        pred_i, _ = self.forward(u, i, i, c, inference=True)
 
-        return pred
+        return pred_i.cpu()

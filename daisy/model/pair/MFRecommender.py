@@ -9,7 +9,7 @@ from IPython import embed
 class PairMF(nn.Module):
     def __init__(self, 
                  user_num, 
-                 item_num, 
+                 max_dim,
                  factors=32,
                  epochs=20, 
                  lr=0.01, 
@@ -51,18 +51,19 @@ class PairMF(nn.Module):
         self.GCE_flag = GCE_flag
         self.loss_type = loss_type
 
-        if reindex:
-            if GCE_flag:
-                print('GCE EMBEDDINGS DEFINED')
-                self.embeddings = GCE(user_num + item_num, factors, X, A)
-            else:
-                self.embeddings = nn.Embedding(user_num + item_num, factors)
-                nn.init.normal_(self.embeddings.weight, std=0.01)
+        if GCE_flag:
+            print('GCE EMBEDDINGS DEFINED')
+            self.embeddings = GCE(max_dim, factors, X, A) if reindex else ValueError(f'Can not use GCE with'
+                                                                                                 f'reindex=False')
         else:
-            self.embed_user = nn.Embedding(user_num, factors)
-            self.embed_item = nn.Embedding(item_num, factors)
-            nn.init.normal_(self.embed_user.weight, std=0.01)
-            nn.init.normal_(self.embed_item.weight, std=0.01)
+            if reindex:
+                self.embeddings = nn.Embedding(max_dim, factors)
+                nn.init.normal_(self.embeddings.weight, std=0.01)
+            else:
+                self.embed_user = nn.Embedding(user_num, factors)
+                self.embed_item = nn.Embedding(max_dim, factors)
+                nn.init.normal_(self.embed_user.weight, std=0.01)
+                nn.init.normal_(self.embed_item.weight, std=0.01)
 
     def forward(self, u, i, j, context):
 
@@ -88,7 +89,7 @@ class PairMF(nn.Module):
 
         return pred_i, pred_j
 
-    def predict(self, u, i):
-        pred_i, _ = self.forward(u, i, i)
+    def predict(self, u, i, c):
+        pred_i, _ = self.forward(u, i, i, c)
 
         return pred_i.cpu()
