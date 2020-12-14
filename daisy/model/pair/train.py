@@ -4,6 +4,7 @@ import torch.optim as optim
 from tqdm import tqdm
 from IPython import embed
 import torch.backends.cudnn as cudnn
+from daisy.utils.splitter import perform_evaluation
 
 
 def train(args, model, train_loader, device, context_flag, writer, loaders, candidates, val_ur):
@@ -76,3 +77,4 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
         # TODO: TENSORBOARD LOSS last_loss
 
         # perform_evaluation(loaders, candidates, model, writer=None, epoch=None)
+        perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=epoch)

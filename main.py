@@ -67,7 +67,8 @@ if __name__ == '__main__':
         if len(args.logsname) == 0:
             string = "reindexed" if args.reindex and not args.gce else "graph"
             context_folder = "context" if args.context else "no_context"
-            writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/logs_{args.algo_name}_{string}_{args.epochs}epochs_{date}/')
+            loss = 'BPR' if args.loss_type == "BPR" else "CL"
+            writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/logs_{loss}_{args.algo_name}_{string}_{args.epochs}epochs_{date}/')
         else:
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
     else:
