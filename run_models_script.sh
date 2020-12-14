@@ -18,8 +18,8 @@ python main.py --dataset $1 --algo_name mf --context --epochs $2 > results/no_co
 echo "DONE MF REINDEXED"
 python main.py --dataset $1 --algo_name fm --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
 echo "DONE FM REINDEXED"
-python main.py --dataset $1 --algo_name nfm --context --mf --epochs $2 > results/no_context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
-echo "DONE NFM ORIGINAL"
+#python main.py --dataset $1 --algo_name nfm --context --mf --epochs $2 > results/no_context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
+#echo "DONE NFM ORIGINAL"
 python main.py --dataset $1 --algo_name nfm --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_nfm_pairwise_epochs=$2.txt
 echo "DONE NFM PAIRWISE"
 python main.py --dataset $1 --algo_name deepfm --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
@@ -32,8 +32,8 @@ python main.py --dataset $1 --algo_name mf --gce --context --epochs $2 > results
 echo "DONE MF REINDEXED-GCE"
 python main.py --dataset $1 --algo_name fm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_fm_epochs=$2.txt
 echo "DONE FM REINDEXED-GCE"
-python main.py --dataset $1 --algo_name nfm --mf --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_nfm_epochs=$2.txt
-echo "DONE NFM REINDEXED-GCE"
+#python main.py --dataset $1 --algo_name nfm --mf --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_nfm_epochs=$2.txt
+#echo "DONE NFM REINDEXED-GCE"
 python main.py --dataset $1 --algo_name nfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_nfm_pairwise_epochs=$2.txt
 echo "DONE NFM REINDEXED-GCE-PAIRWISE"
 python main.py --dataset $1 --algo_name deepfm --gce --context --epochs $2 > results/no_context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
@@ -49,8 +49,8 @@ python main.py --dataset $1 --algo_name mf --epochs $2 > results/context/outputs
 echo "DONE MF REINDEXED"
 python main.py --dataset $1 --algo_name fm --epochs $2 > results/context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
 echo "DONE FM REINDEXED"
-python main.py --dataset $1 --algo_name nfm --mf --epochs $2 > results/context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
-echo "DONE NFM ORIGINAL"
+#python main.py --dataset $1 --algo_name nfm --mf --epochs $2 > results/context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
+#echo "DONE NFM ORIGINAL"
 python main.py --dataset $1 --algo_name nfm --epochs $2 > results/context/outputs_$1/reindexed_$1_nfm_pairwise_epochs=$2.txt
 echo "DONE NFM - PAIRWISE"
 python main.py --dataset $1 --algo_name deepfm --epochs $2 > results/context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
@@ -63,8 +63,8 @@ python main.py --dataset $1 --algo_name mf --gce --epochs $2 > results/context/o
 echo "DONE MF REINDEXED-GCE"
 python main.py --dataset $1 --algo_name fm --gce --epochs $2 > results/context/outputs_$1/graph_$1_fm_epochs=$2.txt
 echo "DONE FM REINDEXED-GCE"
-python main.py --dataset $1 --algo_name nfm --mf --gce --epochs $2 > results/context/outputs_$1/graph_$1_nfm_epochs=$2.txt
-echo "DONE NFM REINDEXED-GCE"
+#python main.py --dataset $1 --algo_name nfm --mf --gce --epochs $2 > results/context/outputs_$1/graph_$1_nfm_epochs=$2.txt
+#echo "DONE NFM REINDEXED-GCE"
 python main.py --dataset $1 --algo_name nfm --gce --epochs $2 > results/context/outputs_$1/graph_$1_nfm_pairwise_epochs=$2.txt
 echo "DONE NFM REINDEXED-GCE-PAIRWISE"
 python main.py --dataset $1 --algo_name deepfm --gce --epochs $2 > results/context/outputs_$1/graph_$1_deepfm_epochs=$2.txt

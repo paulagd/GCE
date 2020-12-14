@@ -4,25 +4,74 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from collections import defaultdict
+from datetime import datetime
 
 import torch
 import torch.utils.data as data
+from torch.utils.tensorboard import SummaryWriter
 
 from daisy.utils.sampler import Sampler
 from daisy.utils.parser import parse_args
-from daisy.utils.splitter import split_test
+from daisy.utils.splitter import split_test, split_validation, perform_evaluation
 from daisy.utils.data import PointData, PairData, UAEData, sparse_mx_to_torch_sparse_tensor
 from daisy.utils.loader import load_rate, get_ur, convert_npy_mat, build_candidates_set, add_last_clicked_item_context
-from daisy.utils.metrics import precision_at_k, recall_at_k, map_at_k, hr_at_k, ndcg_at_k, mrr_at_k
 
 from torch_geometric.utils import from_scipy_sparse_matrix
 from scipy.sparse import identity
 from IPython import embed
 
 
+def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, context_flag=False):
+    test_ucands = build_candidates_set(test_ur, total_train_ur, item_pool, candidates_num, context_flag=context_flag)
+
+    # get predict result
+    print('')
+    print('Generate recommend list...')
+    print('')
+    loaders = {}
+    for u in tqdm(test_ucands.keys()):
+        # build a test MF dataset for certain user u to accelerate
+        if args.context:
+            tmp = pd.DataFrame({
+                'user': [u[0] for _ in test_ucands[u]],
+                'item': test_ucands[u],
+                'context': [u[1] for _ in test_ucands[u]],
+                'rating': [0. for _ in test_ucands[u]],  # fake label, make nonsense
+            })
+        else:
+            tmp = pd.DataFrame({
+                'user': [u for _ in test_ucands[u]],
+                'item': test_ucands[u],
+                'rating': [0. for _ in test_ucands[u]],  # fake label, make nonsense
+            })
+        tmp_neg_set = sampler.transform(tmp, is_training=False, context=args.context)
+        tmp_dataset = PairData(tmp_neg_set, is_training=False, context=args.context)
+        tmp_loader = data.DataLoader(
+            tmp_dataset,
+            batch_size=candidates_num,
+            shuffle=False,
+            num_workers=0
+        )
+        loaders[u] = tmp_loader
+
+    return loaders, test_ucands
+
+
 if __name__ == '__main__':
     ''' all parameter part '''
     args = parse_args()
+
+    # for visualization
+    date = datetime.now().strftime('%y%m%d%H%M%S')
+    if args.logs:
+        if len(args.logsname) == 0:
+            string = "reindexed" if args.reindex and not args.gce else "graph"
+            context_folder = "context" if args.context else "no_context"
+            writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/logs_{args.algo_name}_{string}_epochs={args.epochs}_{date}/')
+        else:
+            writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
+    else:
+        writer = SummaryWriter(log_dir=f'logs/nologs/logs/')
 
     if args.dataset == 'epinions':
         args.lr = 0.001
@@ -41,9 +90,9 @@ if __name__ == '__main__':
     device = torch.device(device)
 
     # store running time in time_log file
-    time_log = open('time_log.txt', 'a') 
+    time_log = open('time_log.txt', 'a')
     
-    ''' Test Process for Metrics Exporting '''
+    ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
     df, users, items = load_rate(args.dataset, args.prepro, binary=True, context=args.context, gce_flag=args.gce,
                                  cut_down_data=args.cut_down_data)
     if args.reindex:
@@ -54,29 +103,32 @@ if __name__ == '__main__':
             # check last number is positive
             assert df['item'].tail().values[-1] > 0
 
+    ''' SPLIT DATA '''
     train_set, test_set = split_test(df, args.test_method, args.test_size)
+    train_set, val_set, _ = split_validation(train_set, val_method=args.test_method, list_output=False)
+
     # temporary used for tuning test result
     # train_set = pd.read_csv(f'./experiment_data/train_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     # test_set = pd.read_csv(f'./experiment_data/test_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     df = pd.concat([train_set, test_set], ignore_index=True)
-
-    # user_num = df['user'].nunique()
-    # item_num = df['item'].nunique()
     dims = np.max(df.to_numpy().astype(int), axis=0) + 1
     if args.dataset in ['yelp']:
         train_set['timestamp'] = pd.to_datetime(train_set['timestamp'], unit='ns')
         test_set['timestamp'] = pd.to_datetime(test_set['timestamp'], unit='ns')
 
+    ''' GET GROUND-TRUTH AND CANDIDATES '''
     # get ground truth
     test_ur = get_ur(test_set, context=args.context, eval=False)
+    val_ur = get_ur(val_set, context=args.context, eval=False)
+    
     total_train_ur = get_ur(train_set, context=args.context, eval=True)
     # initial candidate item pool
     item_pool = set(range(dims[0], dims[1])) if args.reindex else set(range(dims[1]))
     candidates_num = args.cand_num
 
     print('='*50, '\n')
-    # retrain model by the whole train set
-    # format training data
+
+    ''' FORMAT DATA AND CHOOSE MODEL '''
     sampler = Sampler(
         dims,
         num_ng=args.num_ng, 
@@ -96,20 +148,12 @@ if __name__ == '__main__':
         # TODO: should I pow the matrix here?
         edge_idx = edge_idx.to(device)
 
-    if args.algo_name in ['cdae', 'vae']:
-        train_dataset = UAEData(dims[0], dims[1], train_set, test_set)
-        training_mat = convert_npy_mat(dims[0], dims[1], train_set)
+    if args.problem_type == 'pair':
+        train_dataset = PairData(neg_set, is_training=True, context=args.context)
     else:
-        if args.problem_type == 'pair':
-            train_dataset = PairData(neg_set, is_training=True, context=args.context)
-        else:
-            train_dataset = PointData(neg_set, is_training=True, context=args.context)
+        train_dataset = PointData(neg_set, is_training=True, context=args.context)
 
-    # if args.algo_name == 'mostpop':
-    #     from daisy.model.PopRecommender import MostPop
-    #     model = MostPop(n=100)
     user_num = dims[0]
-    # embed()
     max_dim = dims[2] if args.context else dims[1]
     if args.problem_type == 'point':
         if args.algo_name == 'mf':
@@ -232,33 +276,6 @@ if __name__ == '__main__':
                 A=edge_idx if args.gce else None,
                 gpuid=args.gpu,
             )
-        elif args.algo_name == 'cdae':
-            from daisy.model.CDAERecommender import CDAE
-            model = CDAE(
-                rating_mat=training_mat,
-                factors=args.factors,
-                act_activation=args.act_func,
-                out_activation=args.out_func,
-                epochs=args.epochs,
-                lr=args.lr,
-                q=args.dropout,
-                reg_1=args.reg_1,
-                reg_2=args.reg_2,
-                loss_type=args.loss_type,
-                gpuid=args.gpu,
-            )
-        elif args.algo_name == 'vae':
-            from daisy.model.VAERecommender import VAE
-            model = VAE(
-                rating_mat=training_mat,
-                q=args.dropout,
-                epochs=args.epochs,
-                lr=args.lr,
-                reg_1=args.reg_1,
-                reg_2=args.reg_2,
-                loss_type=args.loss_type,
-                gpuid=args.gpu
-            )
         else:
             raise ValueError('Invalid algorithm name')
     elif args.problem_type == 'pair':
@@ -375,26 +392,26 @@ if __name__ == '__main__':
     else:
         raise ValueError('Invalid problem type')
 
-    # if args.algo_name == 'mostpop':
-    #     train_loader = train_dataset
-    #     args.num_workers = 0
+    ''' BUILD RECOMMENDER PIPELINE '''
+
     train_loader = data.DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers
     )
-
-    # build recommender model
+    loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num,
+                                               context_flag=args.context)
+    
     s_time = time.time()
     # TODO: refactor train
     if args.problem_type == 'pair':
         # model.fit(train_loader)
         from daisy.model.pair.train import train
-        train(args, model, train_loader, device, args.context)
+        train(args, model, train_loader, device, args.context, writer, loaders, candidates, val_ur)
     elif args.problem_type == 'point':
         from daisy.model.point.train import train
-        train(args, model, train_loader, device, args.context)
+        train(args, model, train_loader, device, args.context, writer, loaders, candidates, val_ur)
     else:
         raise ValueError()
     # model.fit(train_loader)
@@ -407,104 +424,10 @@ if __name__ == '__main__':
                    f'_{args.loss_type}_{args.sample_method}_GCE={args.gce},  {minutes:.2f} min, {seconds:.4f}seconds' + '\n')
     time_log.close()
 
-    print('Start Calculating Metrics......')
 
-    test_ucands = build_candidates_set(test_ur, total_train_ur, item_pool, candidates_num, context_flag=args.context)
-
-    # get predict result
-    print('')
-    print('Generate recommend list...')
-    print('')
-    preds = {}
-    if args.algo_name in ['vae', 'cdae'] and args.problem_type == 'point':
-        for u in tqdm(test_ucands.keys()):
-            pred_rates = [model.predict(u, i) for i in test_ucands[u]]
-            rec_idx = np.argsort(pred_rates)[::-1][:args.topk]
-            top_n = np.array(test_ucands[u])[rec_idx]
-            preds[u] = top_n
-    else:
-        for u in tqdm(test_ucands.keys()):
-            # build a test MF dataset for certain user u to accelerate
-            if args.context:
-                tmp = pd.DataFrame({
-                    'user': [u[0] for _ in test_ucands[u]],
-                    'item': test_ucands[u],
-                    'context': [u[1] for _ in test_ucands[u]],
-                    'rating': [0. for _ in test_ucands[u]],  # fake label, make nonsense
-                })
-            else:
-                tmp = pd.DataFrame({
-                    'user': [u for _ in test_ucands[u]],
-                    'item': test_ucands[u],
-                    'rating': [0. for _ in test_ucands[u]], # fake label, make nonsense
-                })
-            tmp_neg_set = sampler.transform(tmp, is_training=False, context=args.context)
-            tmp_dataset = PairData(tmp_neg_set, is_training=False, context=args.context)
-            tmp_loader = data.DataLoader(
-                tmp_dataset,
-                batch_size=candidates_num, 
-                shuffle=False, 
-                num_workers=0
-            )
-            # get top-N list with torch method 
-            for items in tmp_loader:
-                user_u, item_i, context = items[0], items[1], items[2]
-                user_u = user_u.to(device)
-                item_i = item_i.to(device)
-                context = context.to(device) if args.context else None
-                prediction = model.predict(user_u, item_i, context)
-                _, indices = torch.topk(prediction, args.topk)
-                top_n = torch.take(torch.tensor(test_ucands[u]), indices).cpu().numpy()
-
-            preds[u] = top_n
-
-    # convert rank list to binary-interaction
-    for u in preds.keys():
-        preds[u] = [1 if i in test_ur[u] else 0 for i in preds[u]]
-    # process topN list and store result for reporting KPI
-    print('Save metric@k result to res folder...')
-    result_save_path = f'./res/{args.dataset}/{args.prepro}/{args.test_method}/'
-    if not os.path.exists(result_save_path):
-        os.makedirs(result_save_path)
-
-    res = pd.DataFrame({'metric@K': ['pre', 'rec', 'hr', 'map', 'mrr', 'ndcg']})
-    for k in [1, 5, 10, 20, 30, 50]:
-        if k > args.topk:
-            continue
-        tmp_preds = preds.copy()        
-        tmp_preds = {key: rank_list[:k] for key, rank_list in tmp_preds.items()}
-
-        pre_k = np.mean([precision_at_k(r, k) for r in tmp_preds.values()])
-        rec_k = recall_at_k(tmp_preds, test_ur, k)
-        hr_k = hr_at_k(tmp_preds, test_ur)
-        map_k = map_at_k(tmp_preds.values())
-        mrr_k = mrr_at_k(tmp_preds, k)
-        ndcg_k = np.mean([ndcg_at_k(r, k) for r in tmp_preds.values()])
-
-        if k == 10:
-            # print(f'Precision@{k}: {pre_k:.4f}')
-            # print(f'Recall@{k}: {rec_k:.4f}')
-            print(f'HR@{k}: {hr_k:.4f}')
-            # print(f'MAP@{k}: {map_k:.4f}')
-            # print(f'MRR@{k}: {mrr_k:.4f}')
-            print(f'NDCG@{k}: {ndcg_k:.4f}')
-
-        res[k] = np.array([pre_k, rec_k, hr_k, map_k, mrr_k, ndcg_k])
-
-    common_prefix = f'with_{args.sample_ratio}{args.sample_method}'
-    algo_prefix = f'{args.loss_type}_{args.problem_type}_{args.algo_name}'
-
-    res.to_csv(
-        f'{result_save_path}{algo_prefix}_{common_prefix}_GCE={args.gce}_kpi_results.csv',
-        index=False
-    )
-
-    print('+'*80)
-    print('+'*80)
-    print(f'TRAINING ELAPSED TIME: {minutes:.2f} min, {seconds:.4f}seconds')
-
-    elapsed_time_total = time.time() - s_time
-    hours, rem = divmod(elapsed_time_total, 3600)
-    minutes, seconds = divmod(rem, 60)
-
-    print(f'TOTAL ELAPSED TIME: {minutes:.2f} min, {seconds:.4f}seconds')
+    ''' TEST METRICS '''
+    print('TEST_SET: Start Calculating Metrics......')
+    loaders_test, candidates_test = build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num,
+                                                         context_flag=args.context)
+    perform_evaluation(loaders_test, candidates_test, model, args, device, test_ur, s_time, minutes_train=minutes,
+                       seconds_train=seconds)

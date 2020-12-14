@@ -1,7 +1,74 @@
 import numpy as np
 import pandas as pd
-
+import time, torch
+from tqdm import tqdm
+from daisy.utils.metrics import precision_at_k, recall_at_k, map_at_k, hr_at_k, ndcg_at_k, mrr_at_k
 from sklearn.model_selection import KFold, train_test_split, GroupShuffleSplit
+from IPython import embed
+
+
+def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time=None, writer=None, epoch=None,
+                       minutes_train=None, seconds_train=None):
+
+    preds = {}
+    # for u_idx, tmp_loader in enumerate(loaders):
+    for u in tqdm(candidates.keys()):
+        # get top-N list with torch method
+        for items in loaders[u]:
+            user_u, item_i, context = items[0], items[1], items[2]
+            user_u = user_u.to(device)
+            item_i = item_i.to(device)
+            context = context.to(device) if args.context else None
+            prediction = model.predict(user_u, item_i, context)
+            _, indices = torch.topk(prediction, args.topk)
+            top_n = torch.take(torch.tensor(candidates[u]), indices).cpu().numpy()
+
+        preds[u] = top_n
+
+    # convert rank list to binary-interaction
+    for u in preds.keys():
+        preds[u] = [1 if i in test_ur[u] else 0 for i in preds[u]]
+
+    # res = pd.DataFrame({'metric@K': ['pre', 'rec', 'hr', 'map', 'mrr', 'ndcg']})
+    for k in [10, 20, 30, 40, 50]:
+        if k > args.topk:
+            continue
+        tmp_preds = preds.copy()
+        tmp_preds = {key: rank_list[:k] for key, rank_list in tmp_preds.items()}
+
+        # pre_k = np.mean([precision_at_k(r, k) for r in tmp_preds.values()])
+        # rec_k = recall_at_k(tmp_preds, test_ur, k)
+        hr_k = hr_at_k(tmp_preds, test_ur)
+        # map_k = map_at_k(tmp_preds.values())
+        # mrr_k = mrr_at_k(tmp_preds, k)
+        ndcg_k = np.mean([ndcg_at_k(r, k) for r in tmp_preds.values()])
+
+        if writer and epoch:
+            writer.add_scalar(f'metrics/HR_@{k}', hr_k, epoch)
+            writer.add_scalar(f'metrics/NDCG_@{k}', ndcg_k, epoch)
+            print(f'HR@{k}: {hr_k:.4f}  |  NDCG@{k}: {ndcg_k:.4f}')
+
+        # res[k] = np.array([pre_k, rec_k, hr_k, map_k, mrr_k, ndcg_k])
+        # res[k] = np.array([hr_k, ndcg_k])
+
+        if not (writer and epoch):
+            # print(f'Precision@{k}: {pre_k:.4f}')
+            # print(f'Recall@{k}: {rec_k:.4f}')
+            print(f'HR@{k}: {hr_k:.4f}')
+            # print(f'MAP@{k}: {map_k:.4f}')
+            # print(f'MRR@{k}: {mrr_k:.4f}')
+            print(f'NDCG@{k}: {ndcg_k:.4f}')
+
+            print('+'*80)
+            print('+'*80)
+            print(f'TRAINING ELAPSED TIME: {minutes_train:.2f} min, {seconds_train:.4f}seconds')
+
+            elapsed_time_total = time.time() - s_time
+            hours, rem = divmod(elapsed_time_total, 3600)
+            minutes, seconds = divmod(rem, 60)
+
+            print(f'TOTAL ELAPSED TIME: {minutes:.2f} min, {seconds:.4f}seconds')
+
 
 def split_test(df, test_method='fo', test_size=.2):
     """
@@ -82,7 +149,7 @@ def split_test(df, test_method='fo', test_size=.2):
     return train_set, test_set
 
 
-def split_validation(train_set, val_method='fo', fold_num=1, val_size=.1):
+def split_validation(train_set, val_method='fo', fold_num=1, val_size=.1, list_output=True):
     """
     method of split data into training data and validation data.
     (Currently, this method returns list of train & validation set, but I'll change 
@@ -115,8 +182,11 @@ def split_validation(train_set, val_method='fo', fold_num=1, val_size=.1):
         cnt = fold_num
     else:
         raise ValueError('Invalid val_method value, expect: cv, loo, tloo, tfo')
-    
-    train_set_list, val_set_list = [], []
+    if list_output:
+        train_set_list, val_set_list = [], []
+    else:
+        train_set_list, val_set_list = pd.DataFrame(), pd.DataFrame()
+
     if val_method == 'ufo':
         driver_ids = train_set['user']
         _, driver_indices = np.unique(np.array(driver_ids), return_inverse=True)
@@ -171,8 +241,13 @@ def split_validation(train_set, val_method='fo', fold_num=1, val_size=.1):
         val_set = train_set[train_set['rank_latest'] == 1].copy()
         del new_train_set['rank_latest'], val_set['rank_latest']
 
-        train_set_list.append(new_train_set)
-        val_set_list.append(val_set)
+        if list_output:
+            train_set_list.append(new_train_set)
+            val_set_list.append(val_set)
+        else:
+            train_set_list = new_train_set
+            val_set_list = val_set
 
     return train_set_list, val_set_list, cnt
+
 

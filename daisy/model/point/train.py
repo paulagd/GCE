@@ -4,9 +4,10 @@ import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from tqdm import tqdm
 from IPython import embed
+from daisy.utils.splitter import perform_evaluation
 
 
-def train(args, model, train_loader, device, context_flag):
+def train(args, model, train_loader, device, context_flag, writer, loaders, candidates, val_ur):
     model.to(device)
 
     if args.optimizer == 'adam':
@@ -36,7 +37,7 @@ def train(args, model, train_loader, device, context_flag):
         # set process bar display
         pbar = tqdm(train_loader)
         pbar.set_description(f'[Epoch {epoch:03d}]')
-        for user, item, context, label in pbar:
+        for i, (user, item, context, label) in enumerate(pbar):
             user = user.to(device)
             item = item.to(device)
             context = context.to(device) if context_flag else None
@@ -51,7 +52,6 @@ def train(args, model, train_loader, device, context_flag):
                 # else:
                 #     loss += model.reg_1 * (model.embed_item.weight.norm(p=1) + model.embed_user.weight.norm(p=1))
                 #     loss += model.reg_2 * (model.embed_item.weight.norm() + model.embed_user.weight.norm())
-
                 if torch.isnan(loss):
                     raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')
             except:
@@ -60,6 +60,7 @@ def train(args, model, train_loader, device, context_flag):
             optimizer.step()
 
             pbar.set_postfix(loss=loss.item())
+            writer.add_scalar('loss/train', loss.item(), epoch * len(train_loader) + i)
             current_loss += loss.item()
 
         if (last_loss < current_loss):
@@ -71,6 +72,7 @@ def train(args, model, train_loader, device, context_flag):
             early_stopping_counter = 0
         last_loss = current_loss
 
-    # TODO: EVALUATION OF VALIDATION AND RETURN METRICS
-    # TODO: TENSORBOARD HR and NDCG
-    # TODO: TENSORBOARD LOSS last_loss
+        # TODO: EVALUATION OF VALIDATION AND RETURN METRICS
+        # TODO: TENSORBOARD HR and NDCG
+        # TODO: TENSORBOARD LOSS last_loss
+        perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=epoch)

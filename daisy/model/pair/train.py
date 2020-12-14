@@ -6,7 +6,7 @@ from IPython import embed
 import torch.backends.cudnn as cudnn
 
 
-def train(args, model, train_loader, device, context_flag):
+def train(args, model, train_loader, device, context_flag, writer, loaders, candidates, val_ur):
     cudnn.benchmark = True
 
     model.to(device)
@@ -74,3 +74,5 @@ def train(args, model, train_loader, device, context_flag):
         # TODO: EVALUATION OF VALIDATION AND RETURN METRICS
         # TODO: TENSORBOARD HR and NDCG
         # TODO: TENSORBOARD LOSS last_loss
+
+        # perform_evaluation(loaders, candidates, model, writer=None, epoch=None)

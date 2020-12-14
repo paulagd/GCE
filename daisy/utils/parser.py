@@ -5,6 +5,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='test recommender')
     # common settings
     # python main.py --algo_name mf --dataset ml-100k  --epochs 10 --gce
+    parser.add_argument("--logs", action="store_true", default=True, help="Enables logs")
+    parser.add_argument("--logsname", default="", help="Enables logs")
     parser.add_argument('--reindex',
                         action='store_false',
                         default=True,
