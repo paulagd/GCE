@@ -49,7 +49,7 @@ def parse_args():
                         help='dataset preprocess op.: origin/Ncore/filter')
     parser.add_argument('--topk', 
                         type=int, 
-                        default=10,
+                        default=20,
                         help='top number of recommend list')
     parser.add_argument('--test_method', 
                         type=str, 

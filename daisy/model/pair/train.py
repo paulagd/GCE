@@ -30,7 +30,7 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
         # set process bar display
         pbar = tqdm(train_loader)
         pbar.set_description(f'[Epoch {epoch:03d}]')
-        for user, item_i, context, item_j, label in pbar:
+        for i, (user, item_i, context, item_j, label) in enumerate(pbar):
             user = user.to(device)
             item_i = item_i.to(device)
             item_j = item_j.to(device)
@@ -61,6 +61,7 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
             optimizer.step()
 
             pbar.set_postfix(loss=loss.item())
+            writer.add_scalar('loss/train', loss.item(), epoch * len(train_loader) + i)
             current_loss += loss.item()
 
         if (last_loss < current_loss):
