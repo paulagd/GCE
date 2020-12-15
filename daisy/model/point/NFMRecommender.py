@@ -17,7 +17,7 @@ class PointNFM(nn.Module):
                  act_function, 
                  num_layers, 
                  batch_norm,
-                 q, 
+                 dropout,
                  epochs, 
                  lr,
                  optimizer='adam',
@@ -56,7 +56,7 @@ class PointNFM(nn.Module):
         self.act_function = act_function
         self.num_layers = num_layers
         self.batch_norm = batch_norm
-        self.dropout = q
+        self.dropout = dropout
         self.optimizer = optimizer
 
         self.lr = lr
@@ -145,6 +145,8 @@ class PointNFM(nn.Module):
                 embeddings = self.embeddings(torch.stack((user, item), dim=1))
             else:
                 embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
+                
+            nn.functional.dropout(embeddings, p=self.dropout, training=self.training, inplace=True)
             if self.mf_flag:
                 fm = embeddings.prod(dim=1)  # shape [256, 32]
             else:

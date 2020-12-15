@@ -21,7 +21,8 @@ class PairMF(nn.Module):
                  X=None,
                  A=None,
                  GCE_flag=False,
-                 early_stop=True):
+                 early_stop=True,
+                 dropout=0):
         """
         Point-wise MF Recommender Class
         Parameters
@@ -46,6 +47,7 @@ class PairMF(nn.Module):
         self.lr = lr
         self.reg_1 = reg_1
         self.reg_2 = reg_2
+        self.dropout = dropout
 
         self.reindex = reindex
         self.GCE_flag = GCE_flag

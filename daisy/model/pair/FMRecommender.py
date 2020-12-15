@@ -21,7 +21,8 @@ class PairFM(nn.Module):
                  X=None,
                  A=None,
                  GCE_flag=False,
-                 early_stop=True):
+                 early_stop=True,
+                 dropout=0):
         """
         Pair-wise FM Recommender Class
         Parameters
@@ -44,6 +45,7 @@ class PairFM(nn.Module):
 
         self.epochs = epochs
         self.lr = lr
+        self.dropout = dropout
         self.reg_1 = reg_1
         self.reg_2 = reg_2
         self.reindex = reindex

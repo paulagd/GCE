@@ -22,6 +22,7 @@ class PointMF(nn.Module):
                  A = None,
                  reindex=False,
                  GCE_flag=False,
+                 dropout=0,
                  early_stop=True):
         """
         Point-wise MF Recommender Class
@@ -48,6 +49,7 @@ class PointMF(nn.Module):
         self.reg_2 = reg_2
         self.epochs = epochs
         self.optimizer = optimizer
+        self.dropout = dropout
         self.reindex = reindex
         self.GCE_flag = GCE_flag
 
@@ -76,6 +78,7 @@ class PointMF(nn.Module):
             else:
                 embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
 
+            nn.functional.dropout(embeddings, p=self.dropout, training=self.training, inplace=True)
             # ix = torch.bmm(embeddings[:, :1, :], embeddings[:, 1:, :].permute(0, 2, 1))
             pred = embeddings.prod(dim=1).sum(dim=1)
             return pred

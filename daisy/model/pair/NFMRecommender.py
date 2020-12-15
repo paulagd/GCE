@@ -14,7 +14,7 @@ class PairNFM(nn.Module):
                  act_function,
                  num_layers,
                  batch_norm,
-                 q, 
+                 dropout,
                  epochs, 
                  lr, 
                  reg_1=0.,
@@ -55,7 +55,7 @@ class PairNFM(nn.Module):
         self.act_function = act_function
         self.num_layers = num_layers
         self.batch_norm = batch_norm
-        self.dropout = q
+        self.dropout = dropout
 
         self.lr = lr
         self.reg_1 = reg_1

@@ -46,7 +46,7 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         if writer and epoch:
             writer.add_scalar(f'metrics/HR_@{k}', hr_k, epoch)
             writer.add_scalar(f'metrics/NDCG_@{k}', ndcg_k, epoch)
-            print(f'HR@{k}: {hr_k:.4f}  |  NDCG@{k}: {ndcg_k:.4f}')
+            # print(f'HR@{k}: {hr_k:.4f}  |  NDCG@{k}: {ndcg_k:.4f}')
 
         # res[k] = np.array([pre_k, rec_k, hr_k, map_k, mrr_k, ndcg_k])
         # res[k] = np.array([hr_k, ndcg_k])

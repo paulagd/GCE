@@ -46,12 +46,16 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
             try:
                 prediction = model(user, item, context)
                 loss = criterion(prediction, label)
-                # if args.reindex:
-                #     # TODO: IMPLEMEMNT REGULARIZATIONS
-                #     pass
-                # else:
-                #     loss += model.reg_1 * (model.embed_item.weight.norm(p=1) + model.embed_user.weight.norm(p=1))
-                #     loss += model.reg_2 * (model.embed_item.weight.norm() + model.embed_user.weight.norm())
+                if args.reindex:
+                    pass
+                    # # [torch.norm(l) for l in model.parameters()]
+                    # if args.gce:
+                    #     loss += model.reg_2 * model.embeddings.GCN_module.weight.norm()   # 3.6643
+                    # else:
+                    #     loss += model.reg_2 * model.embeddings.weight.norm()   # 3.6643
+                else:
+                    loss += model.reg_1 * (model.embed_item.weight.norm(p=1) + model.embed_user.weight.norm(p=1))
+                    loss += model.reg_2 * (model.embed_item.weight.norm() + model.embed_user.weight.norm())
                 if torch.isnan(loss):
                     raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')
             except:

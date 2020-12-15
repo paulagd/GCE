@@ -13,7 +13,7 @@ class PairNeuMF(nn.Module):
                  item_num, 
                  factors, 
                  num_layers, 
-                 q, 
+                 dropout,
                  lr, 
                  epochs, 
                  reg_1=0.001,
@@ -53,7 +53,7 @@ class PairNeuMF(nn.Module):
         self.reg_1 = reg_2
         self.reg_2 = reg_2
 
-        self.dropout = q
+        self.dropout = dropout
         self.model = model_name
         self.GMF_model = GMF_model
         self.MLP_model = MLP_model

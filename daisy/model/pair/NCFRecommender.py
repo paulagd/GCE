@@ -12,7 +12,7 @@ from IPython import embed
 class PairNCF(nn.Module):
 
     def __init__(self, user_num, max_dim, factors, layers=[128, 64, 32, 8], reindex=False, GCE_flag=False, X=None,
-                 A=None, mf=False, gpuid='0'):
+                 A=None, mf=False, gpuid='0', dropout=0):
         super(PairNCF, self).__init__()
         os.environ['CUDA_VISIBLE_DEVICES'] = gpuid
         cudnn.benchmark = True
@@ -23,6 +23,7 @@ class PairNCF(nn.Module):
         self.reindex = reindex
         self.GCE_flag = GCE_flag
         self.mf_flag = mf
+        self.dropout = dropout
 
         if reindex:
             self.fm = FactorizationMachine(reduce_sum=False)

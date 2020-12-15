@@ -68,7 +68,8 @@ if __name__ == '__main__':
             string = "reindexed" if args.reindex and not args.gce else "graph"
             context_folder = "context" if args.context else "no_context"
             loss = 'BPR' if args.loss_type == "BPR" else "CL"
-            writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/logs_{loss}_{args.algo_name}_{string}_{args.epochs}epochs_{date}/')
+            writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/'
+            f'logs_{loss}_DO={args.dropout}_{args.algo_name}_{string}_{args.epochs}epochs_{date}/')
         else:
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
     else:
@@ -173,6 +174,7 @@ if __name__ == '__main__':
                 X=X if args.gce else None,
                 GCE_flag=args.gce,
                 A=edge_idx if args.gce else None,
+                dropout=args.dropout,
                 gpuid=args.gpu
             )
         elif args.algo_name == 'fm':
@@ -191,7 +193,8 @@ if __name__ == '__main__':
                 reindex=args.reindex,
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
-                gpuid=args.gpu
+                gpuid=args.gpu,
+                dropout=args.dropout
             )
         elif args.algo_name == 'neumf':
             from daisy.model.point.NeuMFRecommender import PointNeuMF
@@ -200,7 +203,7 @@ if __name__ == '__main__':
                 max_dim,
                 factors=args.factors,
                 num_layers=args.num_layers,
-                q=args.dropout,
+                dropout=args.dropout,
                 optimizer=args.optimizer,
                 lr=args.lr,
                 epochs=args.epochs,
@@ -211,7 +214,7 @@ if __name__ == '__main__':
                 reindex=args.reindex,
                 # X=X if args.gce else None,
                 # A=edge_idx if args.gce else None,
-                gpuid=args.gpu
+                gpuid=args.gpu,
             )
         elif args.algo_name == 'nfm':
             from daisy.model.point.NFMRecommender import PointNFM
@@ -223,7 +226,7 @@ if __name__ == '__main__':
                 act_function=args.act_func,
                 num_layers=args.num_layers,
                 batch_norm=args.no_batch_norm,
-                q=args.dropout,
+                dropout=args.dropout,
                 epochs=args.epochs,
                 lr=args.lr,
                 reg_1=args.reg_1,
@@ -234,7 +237,7 @@ if __name__ == '__main__':
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
                 gpuid=args.gpu,
-                mf=args.mf
+                mf=args.mf,
             )
         elif args.algo_name == 'ncf':
             layers = [len(dims[:-2])*64, 64, 32, 8] if not args.context else [len(dims[:-2])*64, 64, 32, 8]
@@ -249,7 +252,8 @@ if __name__ == '__main__':
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
                 gpuid=args.gpu,
-                mf=args.mf
+                mf=args.mf,
+                dropout=args.dropout
             )
         elif args.algo_name == 'ngcf':
             from daisy.model.point.NGCF import NGCF
@@ -264,7 +268,7 @@ if __name__ == '__main__':
                 optimizer=args.optimizer,
                 num_layers=args.num_layers,
                 batch_norm=args.no_batch_norm,
-                q=args.dropout,
+                dropout=args.dropout,
                 epochs=args.epochs,
                 lr=args.lr,
                 reg_1=args.reg_1,
@@ -295,7 +299,8 @@ if __name__ == '__main__':
                 reindex=args.reindex,
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
-                gpuid=args.gpu
+                gpuid=args.gpu,
+                dropout=args.dropout
             )
         elif args.algo_name == 'fm':
             from daisy.model.pair.FMRecommender import PairFM
@@ -312,7 +317,8 @@ if __name__ == '__main__':
                 reindex=args.reindex,
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
-                gpuid=args.gpu
+                gpuid=args.gpu,
+                dropout=args.dropout
             )
         elif args.algo_name == 'neumf':
             from daisy.model.pair.NeuMFRecommender import PairNeuMF
@@ -321,7 +327,7 @@ if __name__ == '__main__':
                 max_dim,
                 factors=args.factors,
                 num_layers=args.num_layers,
-                q=args.dropout,
+                dropout=args.dropout,
                 lr=args.lr,
                 epochs=args.epochs,
                 reg_1=args.reg_1,
@@ -338,7 +344,7 @@ if __name__ == '__main__':
                 act_function=args.act_func,
                 num_layers=args.num_layers,
                 batch_norm=args.no_batch_norm,
-                q=args.dropout,
+                dropout=args.dropout,
                 epochs=args.epochs,
                 lr=args.lr,
                 reg_1=args.reg_1,
@@ -364,7 +370,8 @@ if __name__ == '__main__':
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
                 gpuid=args.gpu,
-                mf=args.mf
+                mf=args.mf,
+                dropout=args.dropout
             )
         elif args.algo_name == 'deepfm':
             from daisy.model.pair.DeepFMRecommender import PairDeepFM
@@ -375,7 +382,7 @@ if __name__ == '__main__':
                 act_activation=args.act_func,
                 num_layers=args.num_layers,
                 batch_norm=args.no_batch_norm,
-                q=args.dropout,
+                dropout=args.dropout,
                 epochs=args.epochs,
                 lr=args.lr,
                 reg_1=args.reg_1,
@@ -425,10 +432,10 @@ if __name__ == '__main__':
                    f'_{args.loss_type}_{args.sample_method}_GCE={args.gce},  {minutes:.2f} min, {seconds:.4f}seconds' + '\n')
     time_log.close()
 
-
+    print('+'*80)
     ''' TEST METRICS '''
     print('TEST_SET: Start Calculating Metrics......')
     loaders_test, candidates_test = build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num,
                                                          context_flag=args.context)
     perform_evaluation(loaders_test, candidates_test, model, args, device, test_ur, s_time, minutes_train=minutes,
-                       seconds_train=seconds)
+                       writer=None, seconds_train=seconds)

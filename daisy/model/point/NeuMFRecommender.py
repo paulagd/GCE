@@ -15,7 +15,7 @@ class PointNeuMF(nn.Module):
                  max_dim,
                  factors, 
                  num_layers, 
-                 q, 
+                 dropout,
                  lr, 
                  epochs,
                  optimizer='adam',
@@ -59,7 +59,7 @@ class PointNeuMF(nn.Module):
         self.reg_2 = reg_2
         self.optimizer = optimizer
 
-        self.dropout = q
+        self.dropout = dropout
         self.model = model_name
         self.GMF_model = GMF_model
         self.MLP_model = MLP_model

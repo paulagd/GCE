@@ -50,7 +50,14 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
             else:
                 raise ValueError(f'Invalid loss type: {args.loss_type}')
 
-            if not args.reindex:
+            if args.reindex:
+                # [torch.norm(l) for l in model.parameters()]
+                pass
+                # if args.gce:
+                #     loss += model.reg_2 * model.embeddings.GCN_module.weight.norm()   # 3.6643
+                # else:
+                #     loss += model.reg_2 * model.embeddings.weight.norm()   # 3.6643
+            else:
                 loss += model.reg_1 * (model.embed_item.weight.norm(p=1) + model.embed_user.weight.norm(p=1))
                 loss += model.reg_2 * (model.embed_item.weight.norm() + model.embed_user.weight.norm())
 

@@ -19,6 +19,10 @@ def parse_args():
                         action='store_true',
                         default=False,
                         help='activate to use GCE layer instead of current embbedding layer')
+    # parser.add_argument('--reg2',
+    #                     action='store_true',
+    #                     default=False,
+    #                     help='activate to use regularizations')
     parser.add_argument('--cut_down_data',
                         action='store_true',
                         default=False,
@@ -119,7 +123,7 @@ def parse_args():
                         help='L2 regularization')
     parser.add_argument('--dropout', 
                         type=float, 
-                        default=0,
+                        default=0.5,
                         # default=0.5,
                         help='dropout rate')
     parser.add_argument('--lr', 

@@ -17,7 +17,7 @@ class PairDeepFM(nn.Module):
                  act_activation,
                  num_layers,  # [32, 32] for example
                  batch_norm,
-                 q, 
+                 dropout,
                  epochs, 
                  lr, 
                  reg_1=0.,
@@ -60,7 +60,7 @@ class PairDeepFM(nn.Module):
         self.act_function = act_activation
         self.num_layers = num_layers
         self.batch_norm = batch_norm
-        self.dropout = q
+        self.dropout = dropout
         self.epochs = epochs
         self.lr = lr
         self.reg_1 = reg_1

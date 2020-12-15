@@ -22,6 +22,7 @@ class PointFM(nn.Module):
                  X=None,
                  A=None,
                  GCE_flag=False,
+                 dropout=0,
                  early_stop=True):
         """
         Point-wise FM Recommender Class
@@ -48,6 +49,7 @@ class PointFM(nn.Module):
         self.optimizer = optimizer
         self.reg_1 = reg_1
         self.reg_2 = reg_2
+        self.dropout = dropout
 
         self.reindex = reindex
         self.GCE_flag = GCE_flag
@@ -88,6 +90,8 @@ class PointFM(nn.Module):
                 embeddings = self.embeddings(torch.stack((user, item), dim=1))
             else:
                 embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
+                
+            nn.functional.dropout(embeddings, p=self.dropout, training=self.training, inplace=True)
             # pred = embeddings.prod(dim=1).sum(dim=1, keepdim=True)
             pred = self.fm(embeddings)
 
