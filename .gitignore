@@ -3,10 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-/logs/*
+logs
 /outputs/*
-/results/*
-/data/*
+results
+data
 /outputs_LASTFM/*
 /outputs_ML1M/*
 /outputs_ml-100k/*
