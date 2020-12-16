@@ -69,7 +69,7 @@ if __name__ == '__main__':
             context_folder = "context" if args.context else "no_context"
             loss = 'BPR' if args.loss_type == "BPR" else "CL"
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/'
-            f'logs_{loss}_DO={args.dropout}_{args.algo_name}_{string}_{args.epochs}epochs_{date}/')
+            f'logs_{loss}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_{string}_{args.epochs}epochs_{date}/')
         else:
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
     else:
