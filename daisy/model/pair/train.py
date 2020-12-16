@@ -73,14 +73,14 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
             writer.add_scalar('loss/train', loss.item(), epoch * len(train_loader) + i)
             current_loss += loss.item()
 
-        if (last_loss < current_loss):
-            early_stopping_counter += 1
-            if early_stopping_counter == 10:
-                print('Satisfy early stop mechanism')
-                stop = True
-        else:
-            early_stopping_counter = 0
-        last_loss = current_loss
+        # if (last_loss < current_loss):
+        #     early_stopping_counter += 1
+        #     if early_stopping_counter == 10:
+        #         print('Satisfy early stop mechanism')
+        #         stop = True
+        # else:
+        #     early_stopping_counter = 0
+        # last_loss = current_loss
 
         # TODO: EVALUATION OF VALIDATION AND RETURN METRICS
         # TODO: TENSORBOARD HR and NDCG

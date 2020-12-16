@@ -11,7 +11,7 @@ echo "Starting original no context experiments $1 ..."
 #python main.py --dataset $1 --algo_name fm --reindex --context --epochs $2 > results/no_context/outputs_$1/original_$1_fm_epochs=$2.txt
 #echo "DONE FM ORIGINAL"
 #python main.py --dataset $1 --algo_name nfm --reindex --context --epochs $2 > results/no_context/outputs_$1/original_$1_nfm_epochs=$2.txt
-echo "DONE NFM ORIGINAL"
+#echo "DONE NFM ORIGINAL"
 
 echo "Starting REINDEXED EXPERIMENTS..."
 python main.py --dataset $1 --algo_name mf --context --epochs $2 > results/no_context/outputs_$1/reindexed_$1_mf_epochs=$2.txt

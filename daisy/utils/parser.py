@@ -127,12 +127,12 @@ def parse_args():
                         help='L2 regularization')
     parser.add_argument('--dropout', 
                         type=float, 
-                        default=0.5,
+                        default=0,
                         # default=0.5,
                         help='dropout rate')
     parser.add_argument('--lr', 
                         type=float, 
-                        default=0.01,
+                        default=0.001,
                         help='learning rate')
     parser.add_argument('--epochs', 
                         type=int, 
