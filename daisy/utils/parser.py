@@ -11,6 +11,10 @@ def parse_args():
                         action='store_false',
                         default=True,
                         help='activate if do not want to reindex items')
+    parser.add_argument('--neg_sampling_each_epoch',
+                        action='store_true',
+                        default=False,
+                        help='activate if we want to perform neg_sampling in each epoch')
     parser.add_argument('--context',
                         action='store_false',
                         default=True,

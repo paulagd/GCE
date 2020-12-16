@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.sparse as sp
 from IPython import embed
+from tqdm import tqdm
 
 
 class Sampler(object):
@@ -29,7 +30,7 @@ class Sampler(object):
         assert sample_method in ['uniform', 'item-ascd', 'item-desc'], f'Invalid sampling method: {sample_method}'
         assert 0 <= sample_ratio <= 1, 'Invalid sample ratio value'
 
-    def transform(self, sampled_df, is_training=True, context=False):
+    def transform(self, sampled_df, is_training=True, pair_pos=None, context=False):
         """
 
         Parameters
@@ -56,25 +57,28 @@ class Sampler(object):
         user_num, item_num = np.max(sampled_df[['user', 'item']].to_numpy(), axis=0) + 1
 
         # IDEA: build_adj_mx
-        if self.reindex:
-            dims = self.dims[:3] if context else self.dims[:2]
-            pair_pos = sp.dok_matrix((dims[-1], dims[-1]), dtype=np.float32)
-            neg_sample_pool = list(range(user_num, item_num))
-        else:
-            pair_pos = sp.dok_matrix((user_num, item_num), dtype=np.float32)
-            neg_sample_pool = list(range(item_num))
-
-        for _, row in sampled_df.iterrows():
-            pair_pos[int(row['user']), int(row['item'])] = 1.0
+        if pair_pos is None:
             if self.reindex:
-                pair_pos[int(row['item']), int(row['user'])] = 1.0
-                if context:
-                    # for idx in range(len(row[2:]) -2):  #subtract rating and timestamp
-                    pair_pos[int(row['user']), int(row['context'])] = 1.0
-                    pair_pos[int(row['item']), int(row['context'])] = 1.0
-                    
-                    pair_pos[int(row['context']), int(row['user'])] = 1.0
-                    pair_pos[int(row['context']), int(row['item'])] = 1.0
+                dims = self.dims[:3] if context else self.dims[:2]
+                pair_pos = sp.dok_matrix((dims[-1], dims[-1]), dtype=np.float32)
+                neg_sample_pool = list(range(user_num, item_num))
+            else:
+                pair_pos = sp.dok_matrix((user_num, item_num), dtype=np.float32)
+                neg_sample_pool = list(range(item_num))
+
+            for _, row in sampled_df.iterrows():
+                pair_pos[int(row['user']), int(row['item'])] = 1.0
+                if self.reindex:
+                    pair_pos[int(row['item']), int(row['user'])] = 1.0
+                    if context:
+                        # for idx in range(len(row[2:]) -2):  #subtract rating and timestamp
+                        pair_pos[int(row['user']), int(row['context'])] = 1.0
+                        pair_pos[int(row['item']), int(row['context'])] = 1.0
+
+                        pair_pos[int(row['context']), int(row['user'])] = 1.0
+                        pair_pos[int(row['context']), int(row['item'])] = 1.0
+        else:
+            neg_sample_pool = list(range(user_num, item_num)) if self.reindex else list(range(item_num))
 
         popularity_item_list = sampled_df['item'].value_counts().index.tolist()
         if self.sample_method == 'item-desc':
@@ -85,7 +89,7 @@ class Sampler(object):
         neg_set = []
         uni_num = int(self.num_ng * (1 - self.sample_ratio))
         ex_num = self.num_ng - uni_num
-        for _, row in sampled_df.iterrows():
+        for _, row in tqdm(sampled_df.iterrows(), desc="Negative sampling...", total=len(sampled_df)):
             u = int(row['user'])
             i = int(row['item'])
             c = None if not context else int(row['context'])
@@ -117,5 +121,5 @@ class Sampler(object):
                         embed()
             neg_set.append([u, i, c, r, js]) if context else neg_set.append([u, i, r, js])
 
-        print(f'Finish negative samplings, sample number is {len(neg_set) * self.num_ng}......')
+        # print(f'Finish negative samplings, sample number is {len(neg_set) * self.num_ng}......')
         return neg_set, pair_pos

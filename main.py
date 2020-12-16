@@ -68,8 +68,9 @@ if __name__ == '__main__':
             string = "reindexed" if args.reindex and not args.gce else "graph"
             context_folder = "context" if args.context else "no_context"
             loss = 'BPR' if args.loss_type == "BPR" else "CL"
+            sampling = 'neg_sampling_each_epoch' if args.neg_sampling_each_epoch else ""
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/'
-            f'logs_{loss}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_{string}_{args.epochs}epochs_{date}/')
+            f'logs_{loss}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_{string}_{args.epochs}epochs_{sampling}_{date}/')
         else:
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
     else:
@@ -138,7 +139,7 @@ if __name__ == '__main__':
         sample_ratio=args.sample_ratio,
         reindex=args.reindex
     )
-    neg_set, adj_mx = sampler.transform(train_set, is_training=True, context=args.context)
+    neg_set, adj_mx = sampler.transform(train_set, is_training=True, context=args.context, pair_pos=None)
     if args.gce:
         # embed()
         if args.mh > 1:
@@ -151,7 +152,8 @@ if __name__ == '__main__':
         edge_idx = edge_idx.to(device)
 
     if args.problem_type == 'pair':
-        train_dataset = PairData(neg_set, is_training=True, context=args.context)
+        # train_dataset = PairData(neg_set, is_training=True, context=args.context)
+        train_dataset = PairData(train_set, sampler=sampler, adj_mx=adj_mx, is_training=True, context=args.context)
     else:
         train_dataset = PointData(neg_set, is_training=True, context=args.context)
 

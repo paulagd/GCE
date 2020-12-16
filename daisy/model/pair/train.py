@@ -27,6 +27,8 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
         if stop:
             break
         current_loss = 0.
+        if args.neg_sampling_each_epoch:
+            train_loader.dataset._neg_sampling()
         # set process bar display
         pbar = tqdm(train_loader)
         pbar.set_description(f'[Epoch {epoch:03d}]')

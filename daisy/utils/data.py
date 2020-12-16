@@ -57,7 +57,7 @@ class PointData(data.Dataset):
 
 
 class PairData(data.Dataset):
-    def __init__(self, neg_set, context=False, is_training=True):
+    def __init__(self, data, sampler=None, adj_mx=None, context=False, is_training=True):
         """
         Dataset formatter adapted pair-wise algorithms
         Parameters
@@ -68,26 +68,43 @@ class PairData(data.Dataset):
         super(PairData, self).__init__()
         self.features_fill = []
         self.context = context
+        self.adj_mx = adj_mx
+        self.is_training = is_training
+        self.set = data
+        self.sampler = sampler
+
+        self._neg_sampling()
+
+    def __len__(self):
+        return len(self.features_fill)
+
+    def _neg_sampling(self):
+        if self.is_training:
+            neg_set, _ = self.sampler.transform(self.set, is_training=self.is_training, context=self.context,
+                                                pair_pos=self.adj_mx)
+            self.neg_set = neg_set
+        else:
+            assert self.sampler is None and self.adj_mx is None
+            self.neg_set = self.set
+            # sampler and adj_mx should be none
+            # self.set == negative_set for evaluation
 
         if self.context:
-            for u, i, c, r, js in neg_set:
+            for u, i, c, r, js in self.neg_set:
                 u, i, c, r = int(u), int(i), int(c), np.float32(1)
-                if is_training:
+                if self.is_training:
                     for j in js:
                         self.features_fill.append([u, i, c, j, r])
                 else:
                     self.features_fill.append([u, i, c, i, r])
         else:
-            for u, i, r, js in neg_set:
+            for u, i, r, js in self.neg_set:
                 u, i, r = int(u), int(i), np.float32(1)
-                if is_training:
+                if self.is_training:
                     for j in js:
                         self.features_fill.append([u, i, j, r])
                 else:
                     self.features_fill.append([u, i, i, r])
-
-    def __len__(self):
-        return len(self.features_fill)
 
     def __getitem__(self, idx):
         features = self.features_fill
