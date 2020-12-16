@@ -136,7 +136,7 @@ def parse_args():
                         help='learning rate')
     parser.add_argument('--epochs', 
                         type=int, 
-                        default=50,
+                        default=300,
                         help='training epochs')
     parser.add_argument("--num_workers",
                         type=int,

@@ -22,7 +22,7 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
     early_stopping_counter = 0
     stop = False
     model.train()
-
+    print(f'RUN FOR {args.epochs} EPOCHS')
     for epoch in range(1, args.epochs + 1):
         if stop:
             break
