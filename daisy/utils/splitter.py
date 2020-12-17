@@ -30,6 +30,7 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         preds[u] = [1 if i in test_ur[u] else 0 for i in preds[u]]
 
     # res = pd.DataFrame({'metric@K': ['pre', 'rec', 'hr', 'map', 'mrr', 'ndcg']})
+    res = pd.DataFrame({'metric@K': ['hr', 'ndcg']})
     for k in [10, 20, 30, 40, 50]:
         if k > args.topk:
             continue
@@ -49,9 +50,12 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
             # print(f'HR@{k}: {hr_k:.4f}  |  NDCG@{k}: {ndcg_k:.4f}')
 
         # res[k] = np.array([pre_k, rec_k, hr_k, map_k, mrr_k, ndcg_k])
-        # res[k] = np.array([hr_k, ndcg_k])
-
-        if not (writer and epoch):
+        res[k] = np.array([hr_k, ndcg_k])
+        if not (writer and not epoch is None):
+            if k == 10:
+                print('--------------TEST METRICS ------------')
+                print('+'*80)
+                print('+'*80)
             # print(f'Precision@{k}: {pre_k:.4f}')
             # print(f'Recall@{k}: {rec_k:.4f}')
             print(f'HR@{k}: {hr_k:.4f}')
@@ -59,16 +63,16 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
             # print(f'MRR@{k}: {mrr_k:.4f}')
             print(f'NDCG@{k}: {ndcg_k:.4f}')
 
-            print('+'*80)
-            print('+'*80)
-            print(f'TRAINING ELAPSED TIME: {minutes_train:.2f} min, {seconds_train:.4f}seconds')
+    if not (writer and not epoch is None):
+        print(f'TRAINING ELAPSED TIME: {minutes_train:.2f} min, {seconds_train:.4f}seconds')
 
-            elapsed_time_total = time.time() - s_time
-            hours, rem = divmod(elapsed_time_total, 3600)
-            minutes, seconds = divmod(rem, 60)
+        elapsed_time_total = time.time() - s_time
+        hours, rem = divmod(elapsed_time_total, 3600)
+        minutes, seconds = divmod(rem, 60)
+        print(f'TOTAL ELAPSED TIME: {minutes:.2f} min, {seconds:.4f}seconds')
 
-            print(f'TOTAL ELAPSED TIME: {minutes:.2f} min, {seconds:.4f}seconds')
-
+    return res
+        
 
 def split_test(df, test_method='fo', test_size=.2):
     """

@@ -41,7 +41,7 @@ def parse_args():
                         help='HOPS TO ENABLE -- MULTI HOP FUNCTION')
     parser.add_argument('--problem_type', 
                         type=str, 
-                        default='point',
+                        default='pair',
                         help='pair-wise or point-wise')
     parser.add_argument('--algo_name', 
                         type=str, 
@@ -57,7 +57,7 @@ def parse_args():
                         help='dataset preprocess op.: origin/Ncore/filter')
     parser.add_argument('--topk', 
                         type=int, 
-                        default=20,
+                        default=21,
                         help='top number of recommend list')
     parser.add_argument('--test_method', 
                         type=str, 
@@ -104,7 +104,7 @@ def parse_args():
                         help='negative sampling number')
     parser.add_argument('--loss_type', 
                         type=str, 
-                        default='CL',
+                        default='BPR',
                         help='loss function type: BPR/CL')
     parser.add_argument('--optimizer',
                         type=str,
@@ -136,7 +136,7 @@ def parse_args():
                         help='learning rate')
     parser.add_argument('--epochs', 
                         type=int, 
-                        default=300,
+                        default=50,
                         help='training epochs')
     parser.add_argument("--num_workers",
                         type=int,

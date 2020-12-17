@@ -18,15 +18,20 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
     elif args.optimizer == 'adam':
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    last_loss = 0.
-    early_stopping_counter = 0
-    stop = False
     model.train()
     print(f'RUN FOR {args.epochs} EPOCHS')
+    # IDEA: RANDOM EVALUATION
+    res = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=0)
+    # best_hr = res[10][0]
+    best_ndcg = res[10][1]
+    early_stopping_counter = 0
+    stop = False
+    best_epoch = 0
     for epoch in range(1, args.epochs + 1):
         if stop:
+            print(f'PRINT BEST VALIDATION RESULTS (ndcg optimization) on epoch {best_epoch}:')
+            print(best_res)
             break
-        current_loss = 0.
         if args.neg_sampling_each_epoch:
             train_loader.dataset._neg_sampling()
         # set process bar display
@@ -71,20 +76,18 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
 
             pbar.set_postfix(loss=loss.item())
             writer.add_scalar('loss/train', loss.item(), epoch * len(train_loader) + i)
-            current_loss += loss.item()
 
-        # if (last_loss < current_loss):
-        #     early_stopping_counter += 1
-        #     if early_stopping_counter == 10:
-        #         print('Satisfy early stop mechanism')
-        #         stop = True
-        # else:
-        #     early_stopping_counter = 0
-        # last_loss = current_loss
+        res = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=epoch)
 
-        # TODO: EVALUATION OF VALIDATION AND RETURN METRICS
-        # TODO: TENSORBOARD HR and NDCG
-        # TODO: TENSORBOARD LOSS last_loss
-
-        # perform_evaluation(loaders, candidates, model, writer=None, epoch=None)
-        perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=epoch)
+        if res[10][1] > best_ndcg:
+        # if res[10][0] > best_hr:
+            best_ndcg = res[10][1]
+            # best_hr = res[10][0]
+            best_res = res
+            best_epoch = epoch
+            early_stopping_counter = 0
+        else:
+            early_stopping_counter += 1
+            if early_stopping_counter == 10:
+                print('Satisfy early stop mechanism')
+                stop = True
