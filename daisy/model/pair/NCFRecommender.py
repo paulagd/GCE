@@ -11,7 +11,7 @@ from IPython import embed
 
 class PairNCF(nn.Module):
 
-    def __init__(self, user_num, max_dim, factors, layers=[128, 64, 32, 8], reindex=False, GCE_flag=False, X=None,
+    def __init__(self, user_num, max_dim, factors, layers=[64,32,16,8], reindex=False, GCE_flag=False, X=None,
                  A=None, mf=False, gpuid='0', dropout=0):
         super(PairNCF, self).__init__()
         os.environ['CUDA_VISIBLE_DEVICES'] = gpuid

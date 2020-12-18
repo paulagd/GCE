@@ -45,43 +45,43 @@
 echo "Starting original EXTENDED CONTEXT experiments $1 ..."
 
 echo "Starting REINDEXED EXPERIMENTS..."
-python main.py --dataset $1 --algo_name mf --epochs $2 --lr 0.0001 > results/context/outputs_$1/reindexed_$1_mf_epochs=$2_lrsmaller.txt
+python main.py --dataset $1 --algo_name mf --epochs $2 --lr 0.0001 --dropout $3 > results/context/outputs_$1/reindexed_$1_mf_epochs=$2_lrsmaller_dropout=$3.txt
 echo "DONE MF REINDEXED --lr 0.0001"
-python main.py --dataset $1 --algo_name mf --epochs $2 > results/context/outputs_$1/reindexed_$1_mf_epochs=$2.txt
-echo "DONE MF REINDEXED"
+#python main.py --dataset $1 --algo_name mf --epochs $2 --dropout $3 > results/context/outputs_$1/reindexed_$1_mf_epochs=$2.txt
+#echo "DONE MF REINDEXED"
 
-python main.py --dataset $1 --algo_name fm --epochs $2 --lr 0.0001 > results/context/outputs_$1/reindexed_$1_fm_epochs=$2_lrsmaller.txt
+python main.py --dataset $1 --algo_name fm --epochs $2 --lr 0.0001 --dropout $3 > results/context/outputs_$1/reindexed_$1_fm_epochs=$2_lrsmaller_dropout=$3.txt
 echo "DONE FM REINDEXED --lr 0.0001"
-python main.py --dataset $1 --algo_name fm --epochs $2 > results/context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
-echo "DONE FM REINDEXED"
+#python main.py --dataset $1 --algo_name fm --epochs $2 > results/context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
+#echo "DONE FM REINDEXED"
 #python main.py --dataset $1 --algo_name nfm --mf --epochs $2 > results/context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
 #echo "DONE NFM ORIGINAL"
 #python main.py --dataset $1 --algo_name nfm --epochs $2 > results/context/outputs_$1/reindexed_$1_nfm_pairwise_epochs=$2.txt
 #echo "DONE NFM - PAIRWISE"
-python main.py --dataset $1 --algo_name deepfm --epochs $2 --lr 0.0001 > results/context/outputs_$1/reindexed_$1_deepfm_epochs=$2_lrsmaller.txt
+python main.py --dataset $1 --algo_name deepfm --epochs $2 --lr 0.0001 --dropout $3 > results/context/outputs_$1/reindexed_$1_deepfm_epochs=$2_lrsmaller_dropout=$3.txt
 echo "DONE DFM ORIGINAL --lr 0.0001"
-python main.py --dataset $1 --algo_name deepfm --epochs $2 > results/context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
-echo "DONE DFM ORIGINAL"
+#python main.py --dataset $1 --algo_name deepfm --epochs $2 > results/context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
+#echo "DONE DFM ORIGINAL"
 
-python main.py --dataset $1 --algo_name ncf --epochs $2 --lr 0.0001 > results/context/outputs_$1/reindexed_$1_ncf_epochs=$2_lrsmaller.txt
+python main.py --dataset $1 --algo_name ncf --epochs $2 --lr 0.0001 --dropout $3 > results/context/outputs_$1/reindexed_$1_ncf_epochs=$2_lrsmaller_dropout=$3.txt
 echo "DONE NCF ORIGINAL --lr 0.0001"
-python main.py --dataset $1 --algo_name ncf --epochs $2 > results/context/outputs_$1/reindexed_$1_ncf_epochs=$2.txt
-echo "DONE NCF ORIGINAL"
+#python main.py --dataset $1 --algo_name ncf --epochs $2 > results/context/outputs_$1/reindexed_$1_ncf_epochs=$2.txt
+#echo "DONE NCF ORIGINAL"
 
 
 
 echo "Starting GRAPH experiments..."
-python main.py --dataset $1 --algo_name mf --gce --epochs $2 > results/context/outputs_$1/graph_$1_mf_epochs=$2.txt
+python main.py --dataset $1 --algo_name mf --gce --epochs $2 --lr 0.0001 --dropout $3 > results/context/outputs_$1/graph_$1_mf_epochs=$2_lrsmaller_dropout=$3.txt
 echo "DONE MF REINDEXED-GCE"
-python main.py --dataset $1 --algo_name fm --gce --epochs $2 > results/context/outputs_$1/graph_$1_fm_epochs=$2.txt
+python main.py --dataset $1 --algo_name fm --gce --epochs $2 --lr 0.0001 --dropout $3 > results/context/outputs_$1/graph_$1_fm_epochs=$2_lrsmaller_dropout=$3.txt
 echo "DONE FM REINDEXED-GCE"
 #python main.py --dataset $1 --algo_name nfm --mf --gce --epochs $2 > results/context/outputs_$1/graph_$1_nfm_epochs=$2.txt
 #echo "DONE NFM REINDEXED-GCE"
 #python main.py --dataset $1 --algo_name nfm --gce --epochs $2 > results/context/outputs_$1/graph_$1_nfm_pairwise_epochs=$2.txt
 #echo "DONE NFM REINDEXED-GCE-PAIRWISE"
-python main.py --dataset $1 --algo_name deepfm --gce --epochs $2 > results/context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
+python main.py --dataset $1 --algo_name deepfm --gce --epochs $2 --lr 0.0001 --dropout $3 > results/context/outputs_$1/graph_$1_deepfm_epochs=$2_lrsmaller_dropout=$3.txt
 echo "DONE DFM REINDEXED-GCE"
-python main.py --dataset $1 --algo_name ncf --gce --epochs $2 > results/context/outputs_$1/graph_$1_ncf_epochs=$2.txt
+python main.py --dataset $1 --algo_name ncf --gce --epochs $2 --lr 0.0001 --dropout $3 > results/context/outputs_$1/graph_$1_ncf_epochs=$2_lrsmaller_dropout=$3.txt
 echo "DONE NCF REINDEXED-GCE"
 
 #echo "Starting GRAPH experiments ML MULTIHOP 2 ..."

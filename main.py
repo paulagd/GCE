@@ -360,7 +360,7 @@ if __name__ == '__main__':
                 mf=args.mf
             )
         elif args.algo_name == 'ncf':
-            layers = [len(dims[:-2])*64, 64, 32, 8] if not args.context else [len(dims[:-2])*64, 64, 32, 8]
+            layers = [len(dims[:-2])*32, 32, 16, 8] if not args.context else [len(dims[:-2])*32, 32, 16, 8]
             from daisy.model.pair.NCFRecommender import PairNCF
             model = PairNCF(
                 user_num,
