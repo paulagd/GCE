@@ -104,7 +104,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
             stop = False
         else:
             early_stopping_counter += 1
-            if early_stopping_counter == 10:
+            if early_stopping_counter == 10 and not args.not_early_stopping:
                 print('Satisfy early stop mechanism')
                 stop = True
         fnl_metric.append(tmp_pred_10)

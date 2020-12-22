@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from collections import defaultdict
-from hyperopt import hp, tpe, fmin, Trials
+from hyperopt import hp, tpe, fmin, Trials, space_eval
 
 import torch
 import torch.utils.data as data
@@ -239,9 +239,13 @@ if __name__ == '__main__':
 
     args_dict = vars(args)
 
-    args_dict['lr'] = hp.choice('lr', [0.0001, 0.0005, 0.001, 0.005, 0.01])
-    args_dict['batch_size'] = hp.choice('batch_size', [256, 512, 1024, 2048])
-    args_dict['dropout'] = hp.choice('dropout', [0, 0.15, 0.5])
+    lr_range = [0.0001, 0.0005, 0.001, 0.005, 0.01]
+    batch_size_range = [256, 512, 1024, 2048]
+    do_range = [0, 0.15, 0.5]
+
+    args_dict['lr'] = hp.choice('lr', lr_range)
+    args_dict['batch_size'] = hp.choice('batch_size', batch_size_range)
+    args_dict['dropout'] = hp.choice('dropout', do_range)
     args_dict['epochs'] = args_dict['tune_epochs']
     args_dict['f'] = f
     args_dict['tune'] = True
@@ -255,9 +259,18 @@ if __name__ == '__main__':
                 max_evals=100,
                 trials=trials)
 
-    embed()
     # pickle.dump(trials, open("myfile.p", "wb"))
-    print(best)
+    print(""*20 +'BEST HYPER_PARAMS:' + ""*20)
+    print("lr = " + lr_range[best['lr']])
+    print("batch_size = " + batch_size_range[best['batch_size']])
+    print("dropout = " + do_range[best['dropout']])
+    # lr_range[best['lr']]
+    best_options = space_eval(space, trials.argmin)
+
+    f.write('BEST ITERATION PARAMS' + '\n')
+    f.write(f"-, -, -, {best_options['num_ng']}, {best_options['factors']}, {best_options['dropout']},"
+            f"+ {best_options['lr']}, {best_options['batch_size']}, {best_options['reg_1']}, {best_options['reg_2']}" + '\n')
+    f.flush()
     f.close()
 
     # def hyperopt_bug():
