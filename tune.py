@@ -256,7 +256,7 @@ if __name__ == '__main__':
     space = defaultdict(None, args_dict)
     best = fmin(fn=opt_func,
                 space=space, algo=tpe.suggest,
-                max_evals=2,
+                max_evals=100,
                 trials=trials)
 
     # pickle.dump(trials, open("myfile.p", "wb"))
