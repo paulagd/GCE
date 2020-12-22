@@ -32,7 +32,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
     early_stopping_counter = 0
     stop = False
     best_epoch = 0
-    if not args.not_early_stopping:
+    if args.not_early_stopping:
         print("IT WILL NEVER DO EARLY STOPPING!")
     fnl_metric = []
     for epoch in range(1, args.epochs + 1):
@@ -121,7 +121,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
         print(f'NDCG@10: {fnl_metric[1]:.4f}')
         # record all tuning result and settings
         fnl_metric = [f'{mt:.4f}' for mt in fnl_metric]
-        line = ','.join(fnl_metric) + f',{args.num_ng},{args.factors},{args.dropout},{args.lr},{args.batch_size},' \
+        line = ','.join(fnl_metric) + f',{best_epoch},{args.num_ng},{args.factors},{args.dropout},{args.lr},{args.batch_size},' \
             f'{args.reg_1},{args.reg_2}' + '\n'
         f.write(line)
         f.flush()

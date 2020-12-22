@@ -231,7 +231,7 @@ if __name__ == '__main__':
 
     f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_GCE={args.gce}_{args.dataset}_{args.prepro}_{args.val_method}.csv',
              'w', encoding='utf-8')
-    f.write('HR, NDCG, num_ng, factors, dropout, lr, batch_size, reg_1, reg_2' + '\n')
+    f.write('HR, NDCG, best_epoch, num_ng, factors, dropout, lr, batch_size, reg_1, reg_2' + '\n')
     f.flush()
 
     # param_limit = param_extract(args)
