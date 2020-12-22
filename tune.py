@@ -256,14 +256,14 @@ if __name__ == '__main__':
     space = defaultdict(None, args_dict)
     best = fmin(fn=opt_func,
                 space=space, algo=tpe.suggest,
-                max_evals=100,
+                max_evals=2,
                 trials=trials)
 
     # pickle.dump(trials, open("myfile.p", "wb"))
     print(""*20 +'BEST HYPER_PARAMS:' + ""*20)
-    print("lr = " + lr_range[best['lr']])
-    print("batch_size = " + batch_size_range[best['batch_size']])
-    print("dropout = " + do_range[best['dropout']])
+    print("lr = " + str(lr_range[best['lr']]))
+    print("batch_size = " + str(batch_size_range[best['batch_size']]))
+    print("dropout = " + str(do_range[best['dropout']]))
     # lr_range[best['lr']]
     best_options = space_eval(space, trials.argmin)
 
