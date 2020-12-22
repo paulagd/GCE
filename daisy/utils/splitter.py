@@ -8,11 +8,11 @@ from IPython import embed
 
 
 def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time=None, writer=None, epoch=None,
-                       minutes_train=None, seconds_train=None):
+                       minutes_train=None, seconds_train=None, tune=False):
 
     preds = {}
     # for u_idx, tmp_loader in enumerate(loaders):
-    for u in tqdm(candidates.keys()):
+    for u in tqdm(candidates.keys(), disable=tune):
         # get top-N list with torch method
         for items in loaders[u]:
             user_u, item_i, context = items[0], items[1], items[2]
@@ -31,6 +31,7 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
 
     # res = pd.DataFrame({'metric@K': ['pre', 'rec', 'hr', 'map', 'mrr', 'ndcg']})
     res = pd.DataFrame({'metric@K': ['hr', 'ndcg']})
+    tmp_pred_10 = []
     for k in [10, 20, 30, 40, 50]:
         if k > args.topk:
             continue
@@ -44,14 +45,16 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         # mrr_k = mrr_at_k(tmp_preds, k)
         ndcg_k = np.mean([ndcg_at_k(r, k) for r in tmp_preds.values()])
 
-        if writer and epoch:
+        if (writer and epoch) and not tune:
             writer.add_scalar(f'metrics/HR_@{k}', hr_k, epoch)
             writer.add_scalar(f'metrics/NDCG_@{k}', ndcg_k, epoch)
             # print(f'HR@{k}: {hr_k:.4f}  |  NDCG@{k}: {ndcg_k:.4f}')
 
         # res[k] = np.array([pre_k, rec_k, hr_k, map_k, mrr_k, ndcg_k])
         res[k] = np.array([hr_k, ndcg_k])
-        if not (writer and not epoch is None):
+        if k == 10:
+            tmp_pred_10 = np.array([hr_k, ndcg_k])
+        if not (writer and not epoch is None) and not tune:
             if k == 10:
                 print('--------------TEST METRICS ------------')
                 print('+'*80)
@@ -63,7 +66,7 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
             # print(f'MRR@{k}: {mrr_k:.4f}')
             print(f'NDCG@{k}: {ndcg_k:.4f}')
 
-    if not (writer and not epoch is None):
+    if not (writer and not epoch is None) and not tune:
         print(f'TRAINING ELAPSED TIME: {minutes_train:.2f} min, {seconds_train:.4f}seconds')
 
         elapsed_time_total = time.time() - s_time
@@ -71,7 +74,7 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         minutes, seconds = divmod(rem, 60)
         print(f'TOTAL ELAPSED TIME: {minutes:.2f} min, {seconds:.4f}seconds')
 
-    return res
+    return res, writer, tmp_pred_10
         
 
 def split_test(df, test_method='fo', test_size=.2):

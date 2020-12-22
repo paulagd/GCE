@@ -21,7 +21,7 @@ from scipy.sparse import identity
 from IPython import embed
 
 
-def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, context_flag=False):
+def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, sampler, context_flag=False, tune=False):
     test_ucands = build_candidates_set(test_ur, total_train_ur, item_pool, candidates_num, context_flag=context_flag)
 
     # get predict result
@@ -29,9 +29,9 @@ def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, con
     print('Generate recommend list...')
     print('')
     loaders = {}
-    for u in tqdm(test_ucands.keys()):
+    for u in tqdm(test_ucands.keys(), disable=tune):
         # build a test MF dataset for certain user u to accelerate
-        if args.context:
+        if context_flag:
             tmp = pd.DataFrame({
                 'user': [u[0] for _ in test_ucands[u]],
                 'item': test_ucands[u],
@@ -44,8 +44,8 @@ def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, con
                 'item': test_ucands[u],
                 'rating': [0. for _ in test_ucands[u]],  # fake label, make nonsense
             })
-        tmp_neg_set = sampler.transform(tmp, is_training=False, context=args.context)
-        tmp_dataset = PairData(tmp_neg_set, is_training=False, context=args.context)
+        tmp_neg_set = sampler.transform(tmp, is_training=False, context=context_flag)
+        tmp_dataset = PairData(tmp_neg_set, is_training=False, context=context_flag)
         tmp_loader = data.DataLoader(
             tmp_dataset,
             batch_size=candidates_num,
@@ -418,10 +418,10 @@ if __name__ == '__main__':
     if args.problem_type == 'pair':
         # model.fit(train_loader)
         from daisy.model.pair.train import train
-        train(args, model, train_loader, device, args.context, writer, loaders, candidates, val_ur)
+        train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, writer=writer)
     elif args.problem_type == 'point':
         from daisy.model.point.train import train
-        train(args, model, train_loader, device, args.context, writer, loaders, candidates, val_ur)
+        train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, writer=writer)
     else:
         raise ValueError()
     # model.fit(train_loader)
@@ -438,6 +438,6 @@ if __name__ == '__main__':
     ''' TEST METRICS '''
     print('TEST_SET: Start Calculating Metrics......')
     loaders_test, candidates_test = build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num,
-                                                         context_flag=args.context)
+                                                         sampler, context_flag=args.context)
     perform_evaluation(loaders_test, candidates_test, model, args, device, test_ur, s_time, minutes_train=minutes,
                        writer=None, seconds_train=seconds)

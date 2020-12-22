@@ -3,11 +3,15 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 from IPython import embed
+import numpy as np
 import torch.backends.cudnn as cudnn
 from daisy.utils.splitter import perform_evaluation
+from hyperopt import STATUS_OK
+from hyperopt.progress import tqdm_progress_callback, no_progress_callback
 
 
-def train(args, model, train_loader, device, context_flag, writer, loaders, candidates, val_ur):
+def train(args, model, train_loader, device, context_flag, loaders, candidates, val_ur,  writer=None, tune=False,
+          f=None):
     cudnn.benchmark = True
 
     model.to(device)
@@ -21,7 +25,8 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
     model.train()
     print(f'RUN FOR {args.epochs} EPOCHS')
     # IDEA: RANDOM EVALUATION
-    res = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=0)
+    res, writer, _ = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=0,
+                                        tune=tune)
     # best_hr = res[10][0]
     best_ndcg = res[10][1]
     early_stopping_counter = 0
@@ -29,6 +34,7 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
     best_epoch = 0
     if not args.not_early_stopping:
         print("IT WILL NEVER DO EARLY STOPPING!")
+    fnl_metric = []
     for epoch in range(1, args.epochs + 1):
         if stop and not args.not_early_stopping:
             print(f'PRINT BEST VALIDATION RESULTS (ndcg optimization) on epoch {best_epoch}:')
@@ -36,9 +42,14 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
             break
         if args.neg_sampling_each_epoch:
             train_loader.dataset._neg_sampling()
-        # set process bar display
-        pbar = tqdm(train_loader)
-        pbar.set_description(f'[Epoch {epoch:03d}]')
+
+        if tune:
+            pbar = train_loader
+        else:
+            # set process bar display
+            pbar = tqdm(train_loader)
+            pbar.set_description(f'[Epoch {epoch:03d}]')
+
         for i, (user, item_i, context, item_j, label) in enumerate(pbar):
             user = user.to(device)
             item_i = item_i.to(device)
@@ -76,20 +87,42 @@ def train(args, model, train_loader, device, context_flag, writer, loaders, cand
             loss.backward()
             optimizer.step()
 
-            pbar.set_postfix(loss=loss.item())
-            writer.add_scalar('loss/train', loss.item(), epoch * len(train_loader) + i)
+            if not tune:
+                pbar.set_postfix(loss=loss.item())
+            if not writer is None:
+                writer.add_scalar('loss/train', loss.item(), epoch * len(train_loader) + i)
 
-        res = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=epoch)
+        res, writer, tmp_pred_10 = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer,
+                                                      epoch=epoch, tune=tune)
 
         if res[10][1] > best_ndcg:
-        # if res[10][0] > best_hr:
             best_ndcg = res[10][1]
             # best_hr = res[10][0]
             best_res = res
             best_epoch = epoch
             early_stopping_counter = 0
+            stop = False
         else:
             early_stopping_counter += 1
             if early_stopping_counter == 10:
                 print('Satisfy early stop mechanism')
                 stop = True
+        fnl_metric.append(tmp_pred_10)
+        if tune:
+            print(f'[Epoch {epoch:03d} DONE]')
+
+    if tune:
+        fnl_metric = np.array(fnl_metric).mean(axis=0)   # hr , ndcg
+        score = fnl_metric[1]
+
+        # get final validation metrics result by average operation
+        print('=' * 20, 'Metrics for All Validation', '=' * 20)
+        print(f'HR@10: {fnl_metric[0]:.4f}')
+        print(f'NDCG@10: {fnl_metric[1]:.4f}')
+        # record all tuning result and settings
+        fnl_metric = [f'{mt:.4f}' for mt in fnl_metric]
+        line = ','.join(fnl_metric) + f',{args.num_ng},{args.factors},{args.dropout},{args.lr},{args.batch_size},' \
+            f'{args.reg_1},{args.reg_2}' + '\n'
+        f.write(line)
+        f.flush()
+        return -score

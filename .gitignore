@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 logs
+tune_logs
 /outputs/*
 results
 data

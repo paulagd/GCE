@@ -5,6 +5,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description='test recommender')
     # common settings
     # python main.py --algo_name mf --dataset ml-100k  --epochs 10 --gce
+    parser.add_argument('--tune_epochs',
+                        type=int,
+                        default=30,
+                        help='tuning epochs')
     parser.add_argument("--logs", action="store_true", default=True, help="Enables logs")
     parser.add_argument("--not_early_stopping", action="store_true", default=False, help="Enables not doing early stopping")
     parser.add_argument("--logsname", default="", help="Enables logs")
@@ -127,14 +131,17 @@ def parse_args():
                         default=0.01,
                         help='L2 regularization')
     parser.add_argument('--dropout', 
-                        type=float, 
+                        # type=float,
                         default=0,
                         # default=0.5,
                         help='dropout rate')
     parser.add_argument('--lr', 
-                        type=float, 
                         default=0.001,
                         help='learning rate')
+    # parser.add_argument('--lr',
+    #                     type=float,
+    #                     default=0.001,
+    #                     help='learning rate')
     parser.add_argument('--epochs', 
                         type=int, 
                         default=50,
@@ -144,9 +151,12 @@ def parse_args():
                         default=16,
                         help='num_workers')
     parser.add_argument('--batch_size',
-                        type=int, 
                         default=256,
                         help='batch size for training')
+    # parser.add_argument('--batch_size',
+    #                     type=int,
+    #                     default=256,
+    #                     help='batch size for training')
     parser.add_argument('--num_layers', 
                         type=int, 
                         default=1,

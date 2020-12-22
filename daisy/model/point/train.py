@@ -7,7 +7,7 @@ from IPython import embed
 from daisy.utils.splitter import perform_evaluation
 
 
-def train(args, model, train_loader, device, context_flag, writer, loaders, candidates, val_ur):
+def train(args, model, train_loader, device, context_flag, loaders, candidates, val_ur, writer=None):
     model.to(device)
 
     if args.optimizer == 'adam':
