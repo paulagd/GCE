@@ -4,17 +4,29 @@
 ##sh run_models_script.sh dataset_name epochs lr dropout
 
 
-echo "Starting original EXTENDED CONTEXT experiments $1 ..."
+echo "Starting tunning parameters experiments in dataset $1 ..."
 
-echo "Starting REINDEXED EXPERIMENTS..."
-python main.py --dataset $1 --problem_type pair --loss BPR --algo_name mf --epochs $2 --lr $3 --dropout $4 > results/context/outputs_$1/BPR_reindexed_$1_mf_epochs=$2_lr=$3_do=$4.txt
-echo "DONE MF REINDEXED"
-python main.py --dataset $1 --problem_type pair --loss BPR --algo_name fm --epochs $2 --lr $3 --dropout $4 > results/context/outputs_$1/BPR_reindexed_$1_fm_epochs=$2_lr=$3_do=$4.txt
-echo "DONE FM REINDEXED"
+python tune.py --dataset $1 --algo_name mf --not_early_stopping
+echo "DONE MF TUNNING"
+python tune.py --dataset $1 --algo_name fm --not_early_stopping
+echo "DONE FM TUNNING"
+python tune.py --dataset $1 --algo_name nfm --not_early_stopping
+echo "DONE NFM TUNNING"
+python tune.py --dataset $1 --algo_name dfm --not_early_stopping
+echo "DONE DFM TUNNING"
+python tune.py --dataset $1 --algo_name ncf --not_early_stopping
+echo "DONE NCF TUNNING"
 
-echo "Starting GRAPH experiments..."
-#python main.py --dataset $1 --problem_type pair --loss BPR --algo_name mf --gce --epochs $2 --lr $3 --dropout $4 > results/context/outputs_$1/BPR_graph_$1_mf_epochs=$2_lr=$3_do=$4.txt
-#echo "DONE MF REINDEXED-GCE"
-python main.py --dataset $1 --problem_type pair --loss BPR --algo_name fm --gce --epochs $2 --lr $3 --dropout $4 > results/context/outputs_$1/BPR_graph_$1_fm_epochs=$2_lr=$3_do=$4.txt
-echo "DONE FM REINDEXED-GCE"
+
+echo "Starting GRAPH tunning parameters experiments in dataset $1 ..."
+python tune.py --dataset $1 --algo_name mf --not_early_stopping --gce
+echo "DONE MF TUNNING - GCE"
+python tune.py --dataset $1 --algo_name fm --not_early_stopping --gce
+echo "DONE FM TUNNING - GCE"
+python tune.py --dataset $1 --algo_name nfm --not_early_stopping --gce
+echo "DONE NFM TUNNING - GCE"
+python tune.py --dataset $1 --algo_name dfm --not_early_stopping --gce
+echo "DONE DFM TUNNING - GCE"
+python tune.py --dataset $1 --algo_name ncf --not_early_stopping --gce
+echo "DONE NCF TUNNING - GCE"
 

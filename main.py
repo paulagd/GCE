@@ -69,8 +69,9 @@ if __name__ == '__main__':
             context_folder = "context" if args.context else "no_context"
             loss = 'BPR' if args.loss_type == "BPR" else "CL"
             sampling = 'neg_sampling_each_epoch' if args.neg_sampling_each_epoch else ""
+            stopping = 'not_early_stopping' if args.not_early_stopping else ""
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/'
-            f'logs_{loss}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_{string}_{args.epochs}epochs_{sampling}_{date}/')
+            f'logs_{loss}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_{string}_{args.epochs}epochs_{sampling}_{stopping}_{date}/')
         else:
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
     else:
@@ -82,6 +83,10 @@ if __name__ == '__main__':
     # p = multiprocessing.Pool(args.num_workers)
     # FIX SEED AND SELECT DEVICE
     seed = 1234
+    args.lr = float(args.lr)
+    args.batch_size = int(args.batch_size)
+    args.dropout = float(args.dropout)
+    
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
         device = "cuda"
@@ -403,16 +408,15 @@ if __name__ == '__main__':
         raise ValueError('Invalid problem type')
 
     ''' BUILD RECOMMENDER PIPELINE '''
-
     train_loader = data.DataLoader(
         train_dataset,
-        batch_size=args.batch_size,
+        batch_size=int(args.batch_size),
         shuffle=True,
         num_workers=args.num_workers
     )
-    loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num,
+    loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num, sampler,
                                                context_flag=args.context)
-    
+
     s_time = time.time()
     # TODO: refactor train
     if args.problem_type == 'pair':
@@ -434,10 +438,10 @@ if __name__ == '__main__':
                    f'_{args.loss_type}_{args.sample_method}_GCE={args.gce},  {minutes:.2f} min, {seconds:.4f}seconds' + '\n')
     time_log.close()
 
-    print('+'*80)
-    ''' TEST METRICS '''
-    print('TEST_SET: Start Calculating Metrics......')
-    loaders_test, candidates_test = build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num,
-                                                         sampler, context_flag=args.context)
-    perform_evaluation(loaders_test, candidates_test, model, args, device, test_ur, s_time, minutes_train=minutes,
-                       writer=None, seconds_train=seconds)
+    # print('+'*80)
+    # ''' TEST METRICS '''
+    # print('TEST_SET: Start Calculating Metrics......')
+    # loaders_test, candidates_test = build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num,
+    #                                                      sampler, context_flag=args.context)
+    # perform_evaluation(loaders_test, candidates_test, model, args, device, test_ur, s_time, minutes_train=minutes,
+    #                    writer=None, seconds_train=seconds)
