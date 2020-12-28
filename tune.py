@@ -104,7 +104,7 @@ def opt_func(space):
     elif args.algo_name == 'ncf':
         layers = [len(dims[:-2]) * 32, 32, 16, 8] if not args.context else [len(dims[:-2]) * 32, 32, 16, 8]
         from daisy.model.pair.NCFRecommender import PairNCF
-
+        max_dim = layers[0]
         model = PairNCF(
             user_num,
             max_dim,

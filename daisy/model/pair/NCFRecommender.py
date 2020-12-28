@@ -61,7 +61,7 @@ class PairNCF(nn.Module):
             uembd = self.uEmbd(u)
             iembd = self.iEmbd(i)
             x = torch.cat([uembd, iembd], dim=1)
-            
+
         for l in self.fc_layers:
             x = l(x)
             x = nn.ReLU()(x)

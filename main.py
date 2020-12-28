@@ -71,7 +71,7 @@ if __name__ == '__main__':
             sampling = 'neg_sampling_each_epoch' if args.neg_sampling_each_epoch else ""
             stopping = 'not_early_stopping' if args.not_early_stopping else ""
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/'
-            f'logs_{loss}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_{string}_{args.epochs}epochs_{sampling}_{stopping}_{date}/')
+            f'logs_{loss}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_bs={args.batch_size}_{string}_{args.epochs}epochs_{sampling}_{stopping}_{date}/')
         else:
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
     else:
@@ -366,6 +366,7 @@ if __name__ == '__main__':
             )
         elif args.algo_name == 'ncf':
             layers = [len(dims[:-2])*32, 32, 16, 8] if not args.context else [len(dims[:-2])*32, 32, 16, 8]
+            args.factors = layers[1]
             from daisy.model.pair.NCFRecommender import PairNCF
             model = PairNCF(
                 user_num,
