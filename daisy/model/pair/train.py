@@ -82,7 +82,8 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
                 loss += model.reg_2 * (model.embed_item.weight.norm() + model.embed_user.weight.norm())
 
             if torch.isnan(loss):
-                raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')
+                break
+                # raise ValueError(f'Loss=Nan or Infinity: current settings does not fit the recommender')
 
             loss.backward()
             optimizer.step()
