@@ -80,8 +80,8 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
         #TODO: select one context
         if context:
-            df = df[['user', 'item', 'isweekend']]
-            df = convert_unique_idx(df, 'isweekend')
+            df = df[['user', 'item', 'city']]
+            df = convert_unique_idx(df, 'city')
         else:
             df = df[['user', 'item']]
         # treat weight as interaction, as 1
