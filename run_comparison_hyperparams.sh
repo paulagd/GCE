@@ -6,16 +6,16 @@
 
 echo "Starting tunning parameters experiments in dataset $1 ..."
 #
-#python tune.py --dataset $1 --algo_name mf --not_early_stopping
-#echo "DONE MF TUNNING"
-#python tune.py --dataset $1 --algo_name fm --not_early_stopping
-#echo "DONE FM TUNNING"
-#python tune.py --dataset $1 --algo_name nfm --not_early_stopping
-#echo "DONE NFM TUNNING"
-#python tune.py --dataset $1 --algo_name deepfm --not_early_stopping
-#echo "DONE DFM TUNNING"
-#python tune.py --dataset $1 --algo_name ncf --not_early_stopping
-#echo "DONE NCF TUNNING"
+python tune.py --dataset $1 --algo_name mf --not_early_stopping
+echo "DONE MF TUNNING"
+python tune.py --dataset $1 --algo_name fm --not_early_stopping
+echo "DONE FM TUNNING"
+python tune.py --dataset $1 --algo_name nfm --not_early_stopping
+echo "DONE NFM TUNNING"
+python tune.py --dataset $1 --algo_name deepfm --not_early_stopping
+echo "DONE DFM TUNNING"
+python tune.py --dataset $1 --algo_name ncf --not_early_stopping
+echo "DONE NCF TUNNING"
 
 
 echo "Starting GRAPH tunning parameters experiments in dataset $1 ..."

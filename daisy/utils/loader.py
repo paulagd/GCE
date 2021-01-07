@@ -28,6 +28,25 @@ def cut_down_data_half(df):
     return cut_df
 
 
+def filter_users_and_items(df, num_users=None, freq_items=None, keys=['user', 'item']):
+    '''
+        Reduces the dataframe to a number of users = num_users and it filters the items by frequency
+    '''
+    if num_users is not None:
+        # df = df[df['user_id'].isin(np.unique(df.user_id)[:num_users])]
+        df = df[df[keys[0]].isin(np.unique(df[keys[0]])[:num_users])]
+
+    # Get top5k books
+    top5k_books = df[keys[1]].value_counts()[:5000].index
+    df = df[df[keys[1]].isin(top5k_books)]
+
+    if freq_items is not None:
+        frequent_items = df['item'].value_counts()[df['item'].value_counts() > freq_items].index
+        df = df[df[keys[1]].isin(frequent_items)]
+
+    return df
+
+
 def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False,
               gce_flag=False, cut_down_data=False):
     """
@@ -71,6 +90,31 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
         df = pd.read_csv(f'./data/{src}/ratings.csv')
         df.rename(columns={'userId': 'user', 'movieId': 'item'}, inplace=True)
         # df = df.query('rating >= 4').reset_index(drop=True)
+
+    elif src == 'books':
+        if not os.path.exists(f'./data/{src}/preprocessed_books_complete_timestamp.csv'):
+            df = pd.read_csv(f'./data/{src}/preprocessed_books_complete.csv', sep=',', engine='python')
+            df.rename(columns={'user_id': 'user', 'book_id': 'item', 'date_added': 'timestamp'}, inplace=True)
+
+            df = convert_unique_idx(df, 'user')
+            df = convert_unique_idx(df, 'item')
+            df['rating'] = 1.0
+            # if type(df['timestamp'][0]) == 'str':
+            df['date'] = pd.to_datetime(df['timestamp'])
+            df['timestamp'] = pd.to_datetime(df['date'], utc=True)
+            df['timestamp'] = df.timestamp.astype('int64') // 10 ** 9
+            df.to_csv(f'./data/{src}/preprocessed_books_complete_timestamp.csv', sep=',', index=False)
+        else:
+            df = pd.read_csv(f'./data/{src}/preprocessed_books_complete_timestamp.csv', sep=',', engine='python')
+        del df['date']
+        # reduce users to 3000 and filter items by clicked_frequency > 10
+        df = filter_users_and_items(df, num_users=4000, freq_items=50, keys=['user', 'item'])  # 35422 books
+
+    elif src == 'music':
+        df = pd.read_csv(f'./data/{src}/ratings.csv')
+        df.rename(columns={'userId': 'user', 'movieId': 'item'}, inplace=True)
+        # df = df.query('rating >= 4').reset_index(drop=True)
+
     elif src == 'frappe':
         # http://web.archive.org/web/20180422190150/http://baltrunas.info/research-menu/frappe
         # columNames = ['labels', 'user', 'item', 'daytime', 'weekday', 'isweekend', 'homework', 'cost', 'weather',
@@ -78,7 +122,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
         # df = pd.read_csv(f'./data/{src}/{src}.csv', sep=' ', engine='python', names=columNames)
         df = pd.read_csv(f'./data/{src}/{src}.csv', sep='\t')
 
-        #TODO: select one context
+        # TODO: select one context
         if context:
             df = df[['user', 'item', 'city']]
             df = convert_unique_idx(df, 'city')

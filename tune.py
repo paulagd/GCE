@@ -228,8 +228,8 @@ if __name__ == '__main__':
     # begin tuning here
     tune_log_path = 'tune_logs'
     os.makedirs(tune_log_path, exist_ok=True)
-
-    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_GCE={args.gce}_{args.dataset}_{args.prepro}_{args.val_method}.csv',
+    max_evals = 10 if args.dataset == 'ml-1m' else 100
+    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_GCE={args.gce}_{args.dataset}_{args.prepro}_{args.val_method}_max_evals={max_evals}.csv',
              'w', encoding='utf-8')
     f.write('HR, NDCG, best_epoch, num_ng, factors, dropout, lr, batch_size, reg_1, reg_2' + '\n')
     f.flush()
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     space = defaultdict(None, args_dict)
     best = fmin(fn=opt_func,
                 space=space, algo=tpe.suggest,
-                max_evals=100,
+                max_evals=max_evals,
                 trials=trials)
 
     # pickle.dump(trials, open("myfile.p", "wb"))
