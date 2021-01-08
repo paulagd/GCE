@@ -111,9 +111,18 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
         df = filter_users_and_items(df, num_users=4000, freq_items=50, keys=['user', 'item'])  # 35422 books
 
     elif src == 'music':
-        df = pd.read_csv(f'./data/{src}/ratings.csv')
-        df.rename(columns={'userId': 'user', 'movieId': 'item'}, inplace=True)
+        df = pd.read_csv(f'./data/{src}-context/train.csv')
+
+        df.rename(columns={'user_id': 'user', 'track_id': 'item', 'created_at': 'timestamp'}, inplace=True)
+        df = df[['user', 'item', 'timestamp']]
         # df = df.query('rating >= 4').reset_index(drop=True)
+        df = convert_unique_idx(df, 'user')
+        df = convert_unique_idx(df, 'item')
+        df['rating'] = 1.0
+        df = filter_users_and_items(df, num_users=4000, freq_items=50, keys=['user', 'item'])  # 18508 songs - 3981 users
+
+        df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+        df['timestamp'] = df.timestamp.astype('int64') // 10 ** 9
 
     elif src == 'frappe':
         # http://web.archive.org/web/20180422190150/http://baltrunas.info/research-menu/frappe
