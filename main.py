@@ -57,6 +57,25 @@ def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, sam
     return loaders, test_ucands
 
 
+def incorporate_gender(si):
+    import ast, itertools
+    si['side_info'] = si['side_info'].apply(ast.literal_eval)
+    sinfo = list(itertools.chain(si['side_info'].values))
+    flattened_si = [val for sublist in sinfo for val in sublist]
+    unique_si = np.unique(flattened_si)
+
+    # TODO -- BUBILD MATRIX APPENDIX
+    def list2onehot(list_2_convert):
+        def get_onehot(a):
+            return [x if x in a else 0 for x in range(0, 17 + 1)]
+
+        return [get_onehot(x) for x in list_2_convert]
+
+    one_hot_genres = list2onehot(sinfo)
+    df_extension = pd.DataFrame(columns=unique_si, data=one_hot_genres, index=si['item'])
+    return df_extension.to_numpy()
+
+
 if __name__ == '__main__':
     ''' all parameter part '''
     args = parse_args()
@@ -151,6 +170,15 @@ if __name__ == '__main__':
             print(f'[ MULTI HOP {args.mh} ACTIVATED ]')
             adj_mx = adj_mx.__pow__(int(args.mh))
         X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
+        if args.side_information:
+            si = pd.read_csv(f'./data/{args.dataset}/side-information-{args.dataset}.csv', index_col=0)
+            si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
+            si = si[['item', 'side_info']]
+            if df['item'].min() > 0:    # Reindex items
+                si['item'] = si['item'] + users
+                si_extension = incorporate_gender(si)
+                # TODO: INCORPORATE si_extension to X
+                embed()
         # We retrieve the graph's edges and send both them and graph to device in the next two lines
         edge_idx, edge_attr = from_scipy_sparse_matrix(adj_mx)
         # TODO: should I pow the matrix here?

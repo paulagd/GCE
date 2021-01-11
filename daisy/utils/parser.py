@@ -28,6 +28,10 @@ def parse_args():
                         action='store_true',
                         default=False,
                         help='activate to use GCE layer instead of current embbedding layer')
+    parser.add_argument('--side_information',
+                        action='store_true',
+                        default=False,
+                        help='activate to use side_information features')
     # parser.add_argument('--reg2',
     #                     action='store_true',
     #                     default=False,

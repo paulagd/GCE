@@ -98,7 +98,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
 
         if res[10][1] > best_ndcg:
             best_ndcg = res[10][1]
-            # best_hr = res[10][0]
+            best_hr = res[10][0]
             best_res = res
             best_epoch = epoch
             early_stopping_counter = 0
@@ -127,3 +127,9 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
         f.write(line)
         f.flush()
         return -score
+    else:
+        print('')
+        print(f'++++++++++ BEST METRICS (epoch {best_epoch}) +++++++++')
+        print(f'HR@10: {best_hr:.4f}')
+        print(f'NDCG@10: {best_ndcg:.4f}')
+
