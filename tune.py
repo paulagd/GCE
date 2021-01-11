@@ -10,18 +10,17 @@ from hyperopt import hp, tpe, fmin, Trials, space_eval
 import torch
 import torch.utils.data as data
 from torch_geometric.utils import from_scipy_sparse_matrix
-from scipy.sparse import identity
 from IPython import embed
 
 
 from daisy.utils.sampler import Sampler
 from daisy.utils.parser import parse_args
 from daisy.model.pair.train import train
-from daisy.utils.data import PairData, sparse_mx_to_torch_sparse_tensor
+from daisy.utils.data import PairData, sparse_mx_to_torch_sparse_tensor, incorporate_gender
 from daisy.utils.splitter import split_test, split_validation
 from daisy.utils.loader import load_rate, get_ur, build_candidates_set, add_last_clicked_item_context
-from daisy.utils.metrics import precision_at_k, recall_at_k, map_at_k, hr_at_k, ndcg_at_k, mrr_at_k
-from daisy.utils.tunner import param_extract, confirm_space
+from scipy.sparse import identity, csr_matrix
+
 
 from main import build_evaluation_set
 
@@ -170,8 +169,8 @@ if __name__ == '__main__':
         device = "cpu"
 
     ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
-    df, users, items = load_rate(args.dataset, args.prepro, binary=True, context=args.context, gce_flag=args.gce,
-                                 cut_down_data=args.cut_down_data)
+    df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context, gce_flag=args.gce,
+                                    cut_down_data=args.cut_down_data)
     if args.reindex:
         df = df.astype(np.int64)
         df['item'] = df['item'] + users
@@ -219,6 +218,15 @@ if __name__ == '__main__':
             print(f'[ MULTI HOP {args.mh} ACTIVATED ]')
             adj_mx = adj_mx.__pow__(int(args.mh))
         X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
+        if args.side_information:
+            si = pd.read_csv(f'./data/{args.dataset}/side-information.csv', index_col=0)
+            si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
+            si = si[['item', 'side_info']]
+            if df['item'].min() > 0:    # Reindex items
+                si_extension = incorporate_gender(si, X.shape[0], unique_original_items, users)
+                X_gender = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
+                X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
+                X = torch.transpose(X, 0, 1)
         # We retrieve the graph's edges and send both them and graph to device in the next two lines
         edge_idx, edge_attr = from_scipy_sparse_matrix(adj_mx)
         edge_idx = edge_idx.to(device)

@@ -6,17 +6,17 @@
 echo "Starting original EXTENDED CONTEXT experiments $1 ..."
 
 echo "Starting REINDEXED EXPERIMENTS..."
-#python main.py --dataset $1 --algo_name mf --epochs $2 --lr  --batch_size  --dropout 0 --not_early_stopping > results/context/outputs_$1/reindexed_$1_mf_epochs=$2.txt
-#echo "DONE MF REINDEXED"
-#python main.py --dataset $1 --algo_name fm --epochs $2 --lr  --batch_size  --dropout 0 --not_early_stopping > results/context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
-#echo "DONE FM REINDEXED"
+python main.py --dataset $1 --algo_name mf --epochs $2 --lr 0.0005 --batch_size 1024 --dropout 0 --not_early_stopping > results/context/outputs_$1/reindexed_$1_mf_epochs=$2.txt
+echo "DONE MF REINDEXED"
+python main.py --dataset $1 --algo_name fm --epochs $2 --lr 0.0005 --batch_size 1024 --dropout 0 --not_early_stopping > results/context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
+echo "DONE FM REINDEXED"
 #python main.py --dataset $1 --algo_name nfm --epochs $2 --lr  --batch_size  --dropout 0 --not_early_stopping > results/context/outputs_$1/reindexed_$1_nfm_epochs=$2.txt
 #echo "DONE NFM REINDEXED"
 #python main.py --dataset $1 --algo_name deepfm --epochs $2 --lr  --batch_size  --dropout 0 --not_early_stopping > results/context/outputs_$1/reindexed_$1_deepfm_epochs=$2.txt
 #echo "DONE DFM REINDEXED"
 
 echo "Starting REINDEXED EXPERIMENTS..."
-python main.py --dataset $1 --algo_name mf --epochs $2 --lr  --batch_size  --dropout 0 --gce --not_early_stopping > results/context/outputs_$1/graph_$1_mf_epochs=$2.txt
+python main.py --dataset $1 --algo_name mf --epochs $2 --lr ? --batch_size  --dropout 0 --gce --not_early_stopping > results/context/outputs_$1/graph_$1_mf_epochs=$2.txt
 echo "DONE MF-GCE"
 python main.py --dataset $1 --algo_name fm --epochs $2 --lr  --batch_size  --dropout 0 --gce --not_early_stopping > results/context/outputs_$1/graph_$1_fm_epochs=$2.txt
 echo "DONE FM-GCE"

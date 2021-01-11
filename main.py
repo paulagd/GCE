@@ -13,11 +13,12 @@ from torch.utils.tensorboard import SummaryWriter
 from daisy.utils.sampler import Sampler
 from daisy.utils.parser import parse_args
 from daisy.utils.splitter import split_test, split_validation, perform_evaluation
-from daisy.utils.data import PointData, PairData, UAEData, sparse_mx_to_torch_sparse_tensor
+from daisy.utils.data import PointData, PairData, incorporate_gender, sparse_mx_to_torch_sparse_tensor
 from daisy.utils.loader import load_rate, get_ur, convert_npy_mat, build_candidates_set, add_last_clicked_item_context
 
 from torch_geometric.utils import from_scipy_sparse_matrix
-from scipy.sparse import identity
+from scipy.sparse import identity, csr_matrix
+
 from IPython import embed
 
 
@@ -57,25 +58,6 @@ def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, sam
     return loaders, test_ucands
 
 
-def incorporate_gender(si):
-    import ast, itertools
-    si['side_info'] = si['side_info'].apply(ast.literal_eval)
-    sinfo = list(itertools.chain(si['side_info'].values))
-    flattened_si = [val for sublist in sinfo for val in sublist]
-    unique_si = np.unique(flattened_si)
-
-    # TODO -- BUBILD MATRIX APPENDIX
-    def list2onehot(list_2_convert):
-        def get_onehot(a):
-            return [x if x in a else 0 for x in range(0, 17 + 1)]
-
-        return [get_onehot(x) for x in list_2_convert]
-
-    one_hot_genres = list2onehot(sinfo)
-    df_extension = pd.DataFrame(columns=unique_si, data=one_hot_genres, index=si['item'])
-    return df_extension.to_numpy()
-
-
 if __name__ == '__main__':
     ''' all parameter part '''
     args = parse_args()
@@ -84,7 +66,9 @@ if __name__ == '__main__':
     date = datetime.now().strftime('%y%m%d%H%M%S')
     if args.logs:
         if len(args.logsname) == 0:
-            string = "reindexed" if args.reindex and not args.gce else "graph"
+            string1 = "SINFO" if args.side_information else ""
+            string2 = "reindexed" if args.reindex and not args.gce else "graph"
+            string = string1 + string2
             context_folder = "context" if args.context else "no_context"
             loss = 'BPR' if args.loss_type == "BPR" else "CL"
             sampling = 'neg_sampling_each_epoch' if args.neg_sampling_each_epoch else ""
@@ -120,8 +104,8 @@ if __name__ == '__main__':
     time_log = open('time_log.txt', 'a')
     
     ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
-    df, users, items = load_rate(args.dataset, args.prepro, binary=True, context=args.context, gce_flag=args.gce,
-                                 cut_down_data=args.cut_down_data)
+    df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context,
+                                                        gce_flag=args.gce, cut_down_data=args.cut_down_data)
     if args.reindex:
         df = df.astype(np.int64)
         df['item'] = df['item'] + users
@@ -171,14 +155,16 @@ if __name__ == '__main__':
             adj_mx = adj_mx.__pow__(int(args.mh))
         X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
         if args.side_information:
-            si = pd.read_csv(f'./data/{args.dataset}/side-information-{args.dataset}.csv', index_col=0)
+            si = pd.read_csv(f'./data/{args.dataset}/side-information.csv', index_col=0)
             si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
             si = si[['item', 'side_info']]
             if df['item'].min() > 0:    # Reindex items
-                si['item'] = si['item'] + users
-                si_extension = incorporate_gender(si)
+                si_extension = incorporate_gender(si, X.shape[0], unique_original_items, users)
                 # TODO: INCORPORATE si_extension to X
-                embed()
+                X_gender = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
+                X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
+                X = torch.transpose(X, 0, 1)
+
         # We retrieve the graph's edges and send both them and graph to device in the next two lines
         edge_idx, edge_attr = from_scipy_sparse_matrix(adj_mx)
         # TODO: should I pow the matrix here?

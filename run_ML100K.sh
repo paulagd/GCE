@@ -25,3 +25,4 @@ python main.py --dataset $1 --algo_name nfm --epochs $2 --lr 0.0001 --batch_size
 echo "DONE NFM-GCE"
 python main.py --dataset $1 --algo_name deepfm --epochs $2 --lr 0.01 --batch_size 2048 --dropout 0 --gce --not_early_stopping > results/context/outputs_$1/graph_$1_deepfm_epochs=$2.txt
 echo "DONE DFM-GCE"
+

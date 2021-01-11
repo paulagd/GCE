@@ -251,7 +251,6 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     # which type of pre-dataset will use
     if prepro == 'origin':
         pass
-
     elif prepro.endswith('filter'):
         pattern = re.compile(r'\d+')
         filter_num = int(pattern.findall(prepro)[0])
@@ -316,8 +315,9 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
     else:
         raise ValueError('Invalid dataset preprocess type, origin/Ncore/Nfilter (N is int number) expected')
-
     # encoding user_id and item_id
+    unique_original_items = np.unique(df['item'])
+
     df['user'] = pd.Categorical(df['user']).codes
     df['item'] = pd.Categorical(df['item']).codes
 
@@ -326,7 +326,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
     print(f'Finish loading [{src}]-[{prepro}] dataset with [context == {context}] and [GCE == {gce_flag}]')
 
-    return df, user_num, item_num
+    return df, user_num, item_num, unique_original_items
 
 
 def add_last_clicked_item_context(df, dataset=''):
@@ -335,9 +335,7 @@ def add_last_clicked_item_context(df, dataset=''):
     df = df[['user', 'item', 'context', 'rating', 'timestamp']]
     data = df.to_numpy().astype(int)
     assert data[:, 1].min() == data[:, 0].max() + 1
-    # let space for film UNKNOWN
-    # data[:, 1] = data[:, 1].astype(np.int) + 1
-    # empty_film_idx = data[:, 1].min() - 1
+    # let space for film UNKNOWN  (one more index than the last film)
     empty_film_idx = data[:, 1].max() + 1
     assert data[:, 1].max() + 1 == empty_film_idx
 

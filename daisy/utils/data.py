@@ -346,3 +346,46 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     values = torch.from_numpy(sparse_mx.data)
     shape = torch.Size(sparse_mx.shape)
     return torch.sparse.FloatTensor(indices, values, shape)
+
+
+def incorporate_gender(si, max_dim, unique_original_items, users):
+    import ast, itertools
+    # FILTER JUST USERS THAT WERE LEFT AFTER PREPROCESSING
+    si = si[si.item.isin(unique_original_items)]
+    assert unique_original_items.min() == si['item'].min()
+    assert unique_original_items.max() == si['item'].max()
+
+    si['item'] = pd.Categorical(si['item']).codes
+    si['item'] = si['item'] + users
+
+    si['side_info'] = si['side_info'].apply(ast.literal_eval)
+    sinfo = list(itertools.chain(si['side_info'].values))
+    flattened_si = [val for sublist in sinfo for val in sublist]
+    unique_si = np.unique(flattened_si)
+
+    def list2onehot(list_2_convert):
+        def get_onehot(a):
+            return [1 if x in a else 0 for x in range(0, 17 + 1)]
+
+        return [get_onehot(x) for x in list_2_convert]
+
+    one_hot_genres = list2onehot(sinfo)
+    df_extension = pd.DataFrame(columns=unique_si, data=one_hot_genres, index=si['item'])
+    # CREATE EMPTY DF FOR USERS
+    empty_df = pd.DataFrame(index=range(si['item'].values[0]), columns=unique_si)
+    empty_df = empty_df.fillna(0)
+
+    side_information_df = pd.concat([empty_df, df_extension])
+    if side_information_df.shape[0] + 1 == max_dim:
+        # CREATE EMPTY FILM for context
+        side_information_df = side_information_df.append(pd.Series(), ignore_index=True)
+        side_information_df = side_information_df.fillna(0)
+        assert side_information_df.shape[0] == max_dim
+    else:
+        # CREATE EMPTY FILM for context
+        # CREATE EMPTY DF FOR CONTEXT
+        embed()
+        # empty_df = pd.DataFrame(index=range(si['item'][0]), columns=unique_si)
+        # empty_df = empty_df.fillna(0)
+    return side_information_df
+    # return torch.from_numpy(side_information_df.to_numpy())
