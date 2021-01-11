@@ -105,7 +105,8 @@ if __name__ == '__main__':
     
     ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
     df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context,
-                                                        gce_flag=args.gce, cut_down_data=args.cut_down_data)
+                                                        gce_flag=args.gce, cut_down_data=args.cut_down_data,
+                                                        side_info=args.side_information)
     if args.reindex:
         df = df.astype(np.int64)
         df['item'] = df['item'] + users
@@ -155,6 +156,8 @@ if __name__ == '__main__':
             adj_mx = adj_mx.__pow__(int(args.mh))
         X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
         if args.side_information:
+            # X_gender = sparse_mx_to_torch_sparse_tensor(X_gender_mx).to(device)
+            # X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
             si = pd.read_csv(f'./data/{args.dataset}/side-information.csv', index_col=0)
             si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
             si = si[['item', 'side_info']]
@@ -163,7 +166,6 @@ if __name__ == '__main__':
                 # TODO: INCORPORATE si_extension to X
                 X_gender = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
                 X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
-                X = torch.transpose(X, 0, 1)
 
         # We retrieve the graph's edges and send both them and graph to device in the next two lines
         edge_idx, edge_attr = from_scipy_sparse_matrix(adj_mx)
@@ -178,6 +180,12 @@ if __name__ == '__main__':
 
     user_num = dims[0]
     max_dim = dims[2] if args.context else dims[1]
+    if args.gce and args.side_information:
+        # TODO: I THINK ITS LIKE THIS! UNCOMMENT
+        print('GCE GOOD WAY')
+        max_dim = X.shape[1]
+        # TODO: I THINK ITS LIKE THIS! COMMENT
+        # X = torch.transpose(X, 0, 1)
     if args.problem_type == 'point':
         if args.algo_name == 'mf':
             from daisy.model.point.MFRecommender import PointMF

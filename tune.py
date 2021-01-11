@@ -38,6 +38,10 @@ def opt_func(space):
 
     user_num = dims[0]
     max_dim = dims[2] if args.context else dims[1]
+    if args.gce and args.side_information:
+        # TODO: I THINK ITS LIKE THIS! UNCOMMENT
+        print('GCE GOOD WAY')
+        max_dim = X.shape[1]
 
     if args.algo_name == 'mf':
         from daisy.model.pair.MFRecommender import PairMF
@@ -226,7 +230,7 @@ if __name__ == '__main__':
                 si_extension = incorporate_gender(si, X.shape[0], unique_original_items, users)
                 X_gender = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
                 X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
-                X = torch.transpose(X, 0, 1)
+
         # We retrieve the graph's edges and send both them and graph to device in the next two lines
         edge_idx, edge_attr = from_scipy_sparse_matrix(adj_mx)
         edge_idx = edge_idx.to(device)
@@ -237,7 +241,8 @@ if __name__ == '__main__':
     tune_log_path = 'tune_logs'
     os.makedirs(tune_log_path, exist_ok=True)
     max_evals = 10 if args.dataset == 'ml-1m' else 50
-    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_GCE={args.gce}_{args.dataset}_{args.prepro}_{args.val_method}_max_evals={max_evals}.csv',
+    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_GCE={args.gce}_SINFO={args.side_information}_'
+    f'{args.dataset}_{args.prepro}_{args.val_method}_max_evals={max_evals}.csv',
              'w', encoding='utf-8')
     f.write('HR, NDCG, best_epoch, num_ng, factors, dropout, lr, batch_size, reg_1, reg_2' + '\n')
     f.flush()

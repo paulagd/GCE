@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import scipy.io as sio
 from tqdm import tqdm
+from daisy.utils.data import incorporate_gender
+from scipy.sparse import csr_matrix
 
 from collections import defaultdict
 from IPython import embed
@@ -48,7 +50,7 @@ def filter_users_and_items(df, num_users=None, freq_items=None, keys=['user', 'i
 
 
 def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False,
-              gce_flag=False, cut_down_data=False):
+              gce_flag=False, cut_down_data=False, side_info=False):
     """
     Method of loading certain raw data
     Parameters
@@ -284,7 +286,6 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             df = df.query(f'cnt_item >= {core_num}').reset_index(drop=True).copy()
             df.drop(['cnt_item'], axis=1, inplace=True)
 
-
             return df
 
         def filter_item(df):
@@ -323,6 +324,17 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
     user_num = df['user'].nunique()
     item_num = df['item'].nunique()
+
+    # ####################################################################
+    # if side_info and src == 'ml-100k':
+    #     si = pd.read_csv(f'./data/{src}/side-information.csv', index_col=0)
+    #     si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
+    #     si = si[['item', 'side_info']]
+    #     # if df['item'].min() > 0:  # Reindex items
+    #     si_extension = incorporate_gender(si, X.shape[0], unique_original_items, user_num)
+    #     # TODO: INCORPORATE si_extension to X
+    #     X_gender_mx = csr_matrix(si_extension.values)
+    ####################################################################
 
     print(f'Finish loading [{src}]-[{prepro}] dataset with [context == {context}] and [GCE == {gce_flag}]')
 
