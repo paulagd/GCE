@@ -384,8 +384,10 @@ def incorporate_gender(si, max_dim, unique_original_items, users):
     else:
         # CREATE EMPTY FILM for context
         # CREATE EMPTY DF FOR CONTEXT
-        embed()
-        # empty_df = pd.DataFrame(index=range(si['item'][0]), columns=unique_si)
-        # empty_df = empty_df.fillna(0)
+        empty_df = pd.DataFrame(index=range(max_dim - side_information_df.shape[0]), columns=unique_si)
+        empty_df = empty_df.fillna(0)
+        side_information_df = pd.concat([side_information_df, empty_df])
+        assert side_information_df.shape[0] == max_dim
+
     return side_information_df
     # return torch.from_numpy(side_information_df.to_numpy())
