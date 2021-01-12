@@ -16,6 +16,10 @@ def parse_args():
                         action='store_false',
                         default=True,
                         help='activate if do not want to reindex items')
+    parser.add_argument('--uii',
+                        action='store_true',
+                        default=False,
+                        help='activate if you want to add context with same embebddings')
     parser.add_argument('--neg_sampling_each_epoch',
                         action='store_true',
                         default=False,

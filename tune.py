@@ -174,12 +174,14 @@ if __name__ == '__main__':
 
     ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
     df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context, gce_flag=args.gce,
-                                    cut_down_data=args.cut_down_data)
+                                              cut_down_data=args.cut_down_data)
     if args.reindex:
         df = df.astype(np.int64)
         df['item'] = df['item'] + users
         if args.context:
             df = add_last_clicked_item_context(df, args.dataset)
+            if not args.uii:
+                df['context'] = df['context'] + items
             # check last number is positive
             assert df['item'].tail().values[-1] > 0
 
@@ -240,7 +242,8 @@ if __name__ == '__main__':
     # begin tuning here
     tune_log_path = 'tune_logs'
     os.makedirs(tune_log_path, exist_ok=True)
-    max_evals = 10 if args.dataset == 'ml-1m' else 50
+    # max_evals = 10 if args.dataset == 'ml-1m' else 50
+    max_evals = 10
     f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_GCE={args.gce}_SINFO={args.side_information}_'
     f'{args.dataset}_{args.prepro}_{args.val_method}_max_evals={max_evals}.csv',
              'w', encoding='utf-8')

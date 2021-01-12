@@ -68,7 +68,8 @@ if __name__ == '__main__':
         if len(args.logsname) == 0:
             string1 = "SINFO" if args.side_information else ""
             string2 = "reindexed" if args.reindex and not args.gce else "graph"
-            string = string1 + string2
+            string3 = "_UII_" if args.uii and args.context else "_UIC_"
+            string = string1 + string2 + string3
             context_folder = "context" if args.context else "no_context"
             loss = 'BPR' if args.loss_type == "BPR" else "CL"
             sampling = 'neg_sampling_each_epoch' if args.neg_sampling_each_epoch else ""
@@ -112,7 +113,11 @@ if __name__ == '__main__':
         df['item'] = df['item'] + users
         if args.context:
             df = add_last_clicked_item_context(df, args.dataset)
+            # add context as independent nodes
+            if not args.uii:
+                df['context'] = df['context'] + items
             # check last number is positive
+            # np.max(df.to_numpy(), axis=0)
             assert df['item'].tail().values[-1] > 0
 
     ''' SPLIT DATA '''
@@ -156,6 +161,7 @@ if __name__ == '__main__':
             adj_mx = adj_mx.__pow__(int(args.mh))
         X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
         if args.side_information:
+            
             # X_gender = sparse_mx_to_torch_sparse_tensor(X_gender_mx).to(device)
             # X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
             si = pd.read_csv(f'./data/{args.dataset}/side-information.csv', index_col=0)
