@@ -244,7 +244,7 @@ if __name__ == '__main__':
     os.makedirs(tune_log_path, exist_ok=True)
     # max_evals = 10 if args.dataset == 'ml-1m' else 50
     max_evals = 10
-    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_GCE={args.gce}_SINFO={args.side_information}_'
+    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_UII={args.uii}_GCE={args.gce}_SINFO={args.side_information}_'
     f'{args.dataset}_{args.prepro}_{args.val_method}_max_evals={max_evals}.csv',
              'w', encoding='utf-8')
     f.write('HR, NDCG, best_epoch, num_ng, factors, dropout, lr, batch_size, reg_1, reg_2' + '\n')

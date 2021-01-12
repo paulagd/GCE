@@ -7,7 +7,7 @@ def parse_args():
     # python main.py --algo_name mf --dataset ml-100k  --epochs 10 --gce
     parser.add_argument('--tune_epochs',
                         type=int,
-                        default=30,
+                        default=100,
                         help='tuning epochs')
     parser.add_argument("--logs", action="store_true", default=True, help="Enables logs")
     parser.add_argument("--not_early_stopping", action="store_true", default=False, help="Enables not doing early stopping")
