@@ -4,6 +4,7 @@ import torch.optim as optim
 from tqdm import tqdm
 from IPython import embed
 import numpy as np
+import os
 import torch.backends.cudnn as cudnn
 from daisy.utils.splitter import perform_evaluation
 from hyperopt import STATUS_OK
@@ -13,7 +14,6 @@ from hyperopt.progress import tqdm_progress_callback, no_progress_callback
 def train(args, model, train_loader, device, context_flag, loaders, candidates, val_ur,  writer=None, tune=False,
           f=None):
     cudnn.benchmark = True
-
     model.to(device)
     if args.optimizer == 'adagrad': #args.optimizer == '':
         optimizer = optim.Adagrad(model.parameters(), lr=args.lr, initial_accumulator_value=1e-8)
@@ -22,7 +22,18 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
     elif args.optimizer == 'adam':
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    model.train()
+    init_weight_path = f'weights_{args.algo_name}_GCE={args.gce}-{"UII" if args.uii else "UIC"}-epoch_1.pkl'
+    if args.load_init_weights:
+        if os.path.exists(f'weights/{args.dataset}/{init_weight_path}'):
+            checkpoint = torch.load(f"weights/{args.dataset}/{init_weight_path}")
+            # checkpoint = torch.load("weights/??/checkpoint_??.pt", map_location=('cpu' if device != 'cuda' else None))
+            model.load_state_dict(checkpoint["state_dict"])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+
+            assert (model.embeddings.weight == checkpoint["state_dict"]['embeddings.weight'])[0].sum().item() == args.factors
+        else:
+            raise ValueError('Trying to load INIT weights that do not exist!')
+
     print(f'RUN FOR {args.epochs} EPOCHS')
     # IDEA: RANDOM EVALUATION
     res, writer, _ = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=0,
@@ -50,6 +61,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
             pbar = tqdm(train_loader)
             pbar.set_description(f'[Epoch {epoch:03d}]')
 
+        model.train()
         for i, (user, item_i, context, item_j, label) in enumerate(pbar):
             user = user.to(device)
             item_i = item_i.to(device)
@@ -95,6 +107,16 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
 
         res, writer, tmp_pred_10 = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer,
                                                       epoch=epoch, tune=tune)
+
+        if args.save_initial_weights and epoch == 1:
+            dirname = f'weights/{args.dataset}'
+            os.makedirs(dirname, exist_ok=True)
+            # model.embeddings.weight
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            }
+            torch.save(checkpoint, os.path.join(dirname, init_weight_path))
 
         if res[10][1] > best_ndcg:
             best_ndcg = res[10][1]

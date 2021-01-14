@@ -9,7 +9,7 @@ from IPython import embed
 
 def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time=None, writer=None, epoch=None,
                        minutes_train=None, seconds_train=None, tune=False):
-
+    model.eval()
     preds = {}
     # for u_idx, tmp_loader in enumerate(loaders):
     for u in tqdm(candidates.keys(), disable=tune):
@@ -45,9 +45,9 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         # mrr_k = mrr_at_k(tmp_preds, k)
         ndcg_k = np.mean([ndcg_at_k(r, k) for r in tmp_preds.values()])
 
-        if (writer and epoch) and not tune:
-            writer.add_scalar(f'metrics/HR_@{k}', hr_k, epoch)
-            writer.add_scalar(f'metrics/NDCG_@{k}', ndcg_k, epoch)
+        if (writer and not epoch is None) and not tune:
+            writer.add_scalar(f'metrics/HR_@{k}', hr_k, epoch+1)
+            writer.add_scalar(f'metrics/NDCG_@{k}', ndcg_k, epoch+1)
             # print(f'HR@{k}: {hr_k:.4f}  |  NDCG@{k}: {ndcg_k:.4f}')
 
         # res[k] = np.array([pre_k, rec_k, hr_k, map_k, mrr_k, ndcg_k])

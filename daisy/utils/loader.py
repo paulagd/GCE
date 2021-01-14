@@ -135,8 +135,8 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
         # TODO: select one context
         if context:
-            df = df[['user', 'item', 'city']]
-            df = convert_unique_idx(df, 'city')
+            df = df[['user', 'item', 'daytime']]
+            df = convert_unique_idx(df, 'daytime')
         else:
             df = df[['user', 'item']]
         # treat weight as interaction, as 1
@@ -341,7 +341,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     return df, user_num, item_num, unique_original_items
 
 
-def add_last_clicked_item_context(df, dataset=''):
+def add_last_clicked_item_context(df, dataset='', random_context=False):
     df['context'] = df[df.columns[2]] if dataset == 'frappe' else df['rating']
     timestamp_flag = False if dataset == 'frappe' else True
     df = df[['user', 'item', 'context', 'rating', 'timestamp']]
@@ -350,18 +350,23 @@ def add_last_clicked_item_context(df, dataset=''):
     # let space for film UNKNOWN  (one more index than the last film)
     empty_film_idx = data[:, 1].max() + 1
     assert data[:, 1].max() + 1 == empty_film_idx
-
-    sorted_data = data[data[:, -1].argsort()]
-
-    if not timestamp_flag:
-        data[:, 2] = data[:, 2] + (empty_film_idx + 1)
+    if random_context:
         sorted_data = data.copy()
+        # add 2 to max dimension to take into account the last number of range + empty_film_idx
+        aux = np.random.randint(df['item'].min(), df['item'].max() + 2, size=len(data[:, 2]))
+        sorted_data[:, 2] = aux
     else:
-        for u in tqdm(np.unique(sorted_data[:, 0]), desc="mapping context"):
-            aux = sorted_data[sorted_data[:, 0] == u]
-            # if timestamp_flag:
-            aux[:, 2] = np.insert(aux[:-1][:, 1], 0, empty_film_idx)
-            sorted_data[sorted_data[:, 0] == u] = aux
+        sorted_data = data[data[:, -1].argsort()]
+
+        if not timestamp_flag:
+            data[:, 2] = data[:, 2] + (empty_film_idx + 1)
+            sorted_data = data.copy()
+        else:
+            for u in tqdm(np.unique(sorted_data[:, 0]), desc="mapping context"):
+                aux = sorted_data[sorted_data[:, 0] == u]
+                # if timestamp_flag:
+                aux[:, 2] = np.insert(aux[:-1][:, 1], 0, empty_film_idx)
+                sorted_data[sorted_data[:, 0] == u] = aux
 
     # # user_num == first item number
     # sorted_data[:, 2] = np.concatenate(([user_num], sorted_data[:-1][:, 1]))

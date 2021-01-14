@@ -67,6 +67,8 @@ if __name__ == '__main__':
     if args.logs:
         if len(args.logsname) == 0:
             string1 = "SINFO" if args.side_information else ""
+            random_context = "random_context" if args.random_context else ""
+            INIT = "INIT" if args.load_init_weights else ""
             string2 = "reindexed" if args.reindex and not args.gce else "graph"
             string3 = "_UII_" if args.uii and args.context else "_UIC_"
             string = string1 + string2 + string3
@@ -75,7 +77,7 @@ if __name__ == '__main__':
             sampling = 'neg_sampling_each_epoch' if args.neg_sampling_each_epoch else ""
             stopping = 'not_early_stopping' if args.not_early_stopping else ""
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/'
-            f'logs_{loss}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_bs={args.batch_size}_{string}_{args.epochs}epochs_{sampling}_{stopping}_{date}/')
+            f'logs_{loss}_{INIT}{random_context}_lr={args.lr}_DO={args.dropout}_{args.algo_name}_bs={args.batch_size}_{string}_{args.epochs}epochs_{sampling}_{stopping}_{date}/')
         else:
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
     else:
@@ -112,7 +114,7 @@ if __name__ == '__main__':
         df = df.astype(np.int64)
         df['item'] = df['item'] + users
         if args.context:
-            df = add_last_clicked_item_context(df, args.dataset)
+            df = add_last_clicked_item_context(df, args.dataset, args.random_context)
             # add context as independent nodes
             if not args.uii:
                 df['context'] = df['context'] + items

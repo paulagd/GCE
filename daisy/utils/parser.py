@@ -9,28 +9,22 @@ def parse_args():
                         type=int,
                         default=100,
                         help='tuning epochs')
-    parser.add_argument("--logs", action="store_true", default=True, help="Enables logs")
+    parser.add_argument("--logs", action="store_false", default=True, help="Enables logs")
+    parser.add_argument("--save_initial_weights", action="store_true", default=False, help="Enables saving epoch 0 weights.")
+    parser.add_argument("--load_init_weights", action="store_true", default=False, help="Enables loading init weights")
     parser.add_argument("--not_early_stopping", action="store_true", default=False, help="Enables not doing early stopping")
     parser.add_argument("--logsname", default="", help="Enables logs")
-    parser.add_argument('--reindex',
-                        action='store_false',
-                        default=True,
+    parser.add_argument('--reindex', action='store_false', default=True,
                         help='activate if do not want to reindex items')
-    parser.add_argument('--uii',
-                        action='store_true',
-                        default=False,
+    parser.add_argument('--uii', action='store_true', default=False,
                         help='activate if you want to add context with same embebddings')
-    parser.add_argument('--neg_sampling_each_epoch',
-                        action='store_true',
-                        default=False,
+    parser.add_argument('--random_context', action='store_true', default=False,
+                        help='activate if you want to do experiment with random last clicked item as context')
+    parser.add_argument('--neg_sampling_each_epoch', action='store_true', default=False,
                         help='activate if we want to perform neg_sampling in each epoch')
-    parser.add_argument('--context',
-                        action='store_false',
-                        default=True,
+    parser.add_argument('--context', action='store_false', default=True,
                         help='activate if do not want to add context')
-    parser.add_argument('--gce',
-                        action='store_true',
-                        default=False,
+    parser.add_argument('--gce', action='store_true', default=False,
                         help='activate to use GCE layer instead of current embbedding layer')
     parser.add_argument('--side_information',
                         action='store_true',
