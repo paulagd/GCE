@@ -49,7 +49,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
     for epoch in range(1, args.epochs + 1):
         if stop and not args.not_early_stopping:
             print(f'PRINT BEST VALIDATION RESULTS (ndcg optimization) on epoch {best_epoch}:')
-            print(best_res)
+            # print(best_res)
             break
         if args.neg_sampling_each_epoch:
             train_loader.dataset._neg_sampling()

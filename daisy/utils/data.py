@@ -4,6 +4,7 @@ import pandas as pd
 import scipy.sparse as sp
 import torch.utils.data as data
 import torch
+from tqdm import tqdm
 from IPython import embed
 
 
@@ -80,6 +81,7 @@ class PairData(data.Dataset):
 
     def _neg_sampling(self):
         if self.is_training:
+            
             neg_set, _ = self.sampler.transform(self.set, is_training=self.is_training, context=self.context,
                                                 pair_pos=self.adj_mx)
             self.neg_set = neg_set
@@ -348,7 +350,7 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     return torch.sparse.FloatTensor(indices, values, shape)
 
 
-def incorporate_gender(si, max_dim, unique_original_items, users):
+def incorporate_in_ml100k(si, max_dim, unique_original_items, users):
     import ast, itertools
     # FILTER JUST USERS THAT WERE LEFT AFTER PREPROCESSING
     si = si[si.item.isin(unique_original_items)]
@@ -362,14 +364,12 @@ def incorporate_gender(si, max_dim, unique_original_items, users):
     sinfo = list(itertools.chain(si['side_info'].values))
     flattened_si = [val for sublist in sinfo for val in sublist]
     unique_si = np.unique(flattened_si)
-
-    def list2onehot(list_2_convert):
+    def list2onehot(list_2_convert, dim):
         def get_onehot(a):
-            return [1 if x in a else 0 for x in range(0, 17 + 1)]
+            return [1 if x in a else 0 for x in range(0, dim)]  # dim = 18
 
         return [get_onehot(x) for x in list_2_convert]
-
-    one_hot_genres = list2onehot(sinfo)
+    one_hot_genres = list2onehot(sinfo, len(unique_si))
     df_extension = pd.DataFrame(columns=unique_si, data=one_hot_genres, index=si['item'])
     # CREATE EMPTY DF FOR USERS
     empty_df = pd.DataFrame(index=range(si['item'].values[0]), columns=unique_si)
@@ -391,3 +391,82 @@ def incorporate_gender(si, max_dim, unique_original_items, users):
 
     return side_information_df
     # return torch.from_numpy(side_information_df.to_numpy())
+
+
+def incorporate_sinfo_by_dim(si, max_dim, dims, col='side_info', contextasfeature=False):
+    
+    '''
+    :param si:  dataframe with unique items and its respective side info in 'side_info' column (int values or
+     list of ints)
+    :param max_dim: total number of nodes
+    :param users: number of users
+    exemple:
+             item  side_info
+        0     172          0
+        78    173          0
+        191   174          0
+        326   175          2
+        552   176          0
+    '''
+    import itertools
+    feature_col = col.split('-')[0]
+    si = si[[feature_col, col]]
+    if feature_col == 'user' and contextasfeature:
+        si = si.drop_duplicates()
+        # si['side_info'] = si.groupby(['user'])[col].transform(lambda x: ','.join(x))
+        df = pd.DataFrame(columns=["user", "user-feat"])
+        for user in np.unique(si['user']):
+            user_row_vals = si[si['user'] == user][col].values
+            df = df.append({"user": user, "user-feat": user_row_vals}, ignore_index=True)
+        si = df.copy()
+    else:
+        # other_col = 'item' if feature_col == 'user' else 'user'
+        si = si.drop_duplicates(feature_col)
+        # si.drop(columns=feature_col, inplace=True)
+    if feature_col == 'item':
+        si['item'] = pd.Categorical(si['item']).codes
+        assert si['item'].min() == 0
+        si['item'] = si['item'] + dims[0]
+    # FILTER JUST USERS THAT WERE LEFT AFTER PREPROCESSING
+    sinfo = list(itertools.chain(si[col].values))
+    if type(sinfo[0]) == type(np.array([])):
+        sinfo = [x.tolist() for x in sinfo]
+    elif not type(sinfo[0]) == list:
+        sinfo = [[x] for x in sinfo]
+    flattened_si = [val for sublist in sinfo for val in sublist]
+    unique_si = np.unique(flattened_si)
+
+    def list2onehot(list_2_convert, dim):
+        def get_onehot(a):
+            return [1 if x in a else 0 for x in range(0, dim)]
+
+        return [get_onehot(x) for x in tqdm(list_2_convert)]
+
+    one_hot_genres = list2onehot(sinfo, len(unique_si))
+    df_extension = pd.DataFrame(columns=unique_si, data=one_hot_genres, index=si[feature_col])
+    # CREATE EMPTY DF FOR USERS if feature_col == 'item'
+    if feature_col == 'user':
+        empty_df = pd.DataFrame(index=range(dims[0], dims[1]), columns=unique_si)
+        empty_df = empty_df.fillna(0)
+        side_information_df = pd.concat([df_extension, empty_df])
+    else:
+        empty_df = pd.DataFrame(index=range(dims[0]), columns=unique_si)
+        empty_df = empty_df.fillna(0)
+        side_information_df = pd.concat([empty_df, df_extension])
+
+    if side_information_df.shape[0] == max_dim:
+        # NO CONTEXT, ALL READY!
+        pass
+    elif side_information_df.shape[0] + 1 == max_dim:
+        # CREATE EMPTY FILM for context
+        side_information_df = side_information_df.append(pd.Series(), ignore_index=True)
+        side_information_df = side_information_df.fillna(0)
+        assert side_information_df.shape[0] == max_dim
+    else:
+        # CREATE EMPTY FILM for context
+        # CREATE EMPTY DF FOR CONTEXT
+        empty_df = pd.DataFrame(index=range(max_dim - side_information_df.shape[0]), columns=unique_si)
+        empty_df = empty_df.fillna(0)
+        side_information_df = pd.concat([side_information_df, empty_df])
+        assert side_information_df.shape[0] == max_dim
+    return side_information_df

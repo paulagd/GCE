@@ -16,7 +16,7 @@ from IPython import embed
 from daisy.utils.sampler import Sampler
 from daisy.utils.parser import parse_args
 from daisy.model.pair.train import train
-from daisy.utils.data import PairData, sparse_mx_to_torch_sparse_tensor, incorporate_gender
+from daisy.utils.data import PairData, sparse_mx_to_torch_sparse_tensor, incorporate_in_ml100k, incorporate_sinfo_by_dim
 from daisy.utils.splitter import split_test, split_validation
 from daisy.utils.loader import load_rate, get_ur, build_candidates_set, add_last_clicked_item_context
 from scipy.sparse import identity, csr_matrix
@@ -164,6 +164,9 @@ def opt_func(space):
 if __name__ == '__main__':
 
     ''' all parameter part '''
+    ####################################
+    # TODO: convert in function to stop copying code from main.py
+    ####################################
     args = parse_args()
     seed = 1234
     if torch.cuda.is_available():
@@ -173,8 +176,24 @@ if __name__ == '__main__':
         device = "cpu"
 
     ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
-    df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context, gce_flag=args.gce,
-                                              cut_down_data=args.cut_down_data)
+    df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context,
+                                                        gce_flag=args.gce, cut_down_data=args.cut_down_data,
+                                                        side_info=args.side_information, context_type=args.context_type,
+                                                        context_as_userfeat=args.context_as_userfeat)
+    if args.side_information and not args.dataset == 'ml-100k':
+        if args.dataset in ['lastfm']:
+            aux_si = df.iloc[:, :-2].copy() # take all columns unless user, rating and timestamp
+            if args.context_as_userfeat:
+                args.context = False
+        elif (np.unique(df['timestamp']) == [1])[0]:
+            # BIPARTED GRAPH
+            args.context = False
+            print('BI-PARTED GRAPH WITH X')
+            aux_si = df.iloc[:, :-2].copy() # take all columns unless user, rating and timestamp
+        else:
+            aux_si = df[['item', 'side_info']].copy()
+            aux_si = aux_si.drop_duplicates('item')
+        
     if args.reindex:
         df = df.astype(np.int64)
         df['item'] = df['item'] + users
@@ -225,19 +244,47 @@ if __name__ == '__main__':
             adj_mx = adj_mx.__pow__(int(args.mh))
         X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
         if args.side_information:
-            si = pd.read_csv(f'./data/{args.dataset}/side-information.csv', index_col=0)
-            si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
-            si = si[['item', 'side_info']]
-            if df['item'].min() > 0:    # Reindex items
-                si_extension = incorporate_gender(si, X.shape[0], unique_original_items, users)
-                X_gender = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
-                X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
+            if args.dataset == 'ml-100k':
+                # X_gender = sparse_mx_to_torch_sparse_tensor(X_gender_mx).to(device)
+                # X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
+                si = pd.read_csv(f'./data/{args.dataset}/side-information.csv', index_col=0)
+                si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
+                # si = si[['item', 'side_info']]
+                if df['item'].min() > 0:  # Reindex items
+                    # TODO: INCORPORATE si_extension to X
+                    si_extension = incorporate_in_ml100k(si[['item', 'side_info']], X.shape[1], unique_original_items,
+                                                         users)
+                    X_gender = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
+                    if args.actors:
+                        si.drop(columns=['side_info'], inplace=True)
+                        si.rename(columns={'actors': 'side_info'}, inplace=True)
+                        si_ext = incorporate_in_ml100k(si[['item', 'side_info']], X.shape[1], unique_original_items,
+                                                       users)
+                        X_sinfo = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_ext.values)).to(device)
+                        X = torch.cat((X, X_gender, X_sinfo), -1)
+                    else:
+                        X = torch.cat((X, X_gender), -1)  # torch.Size([2096, 2114])  2096 + 18 = 2114
+            elif args.dataset == 'music':  # MORE GENERIC CASE
+                si_extension = incorporate_sinfo_by_dim(aux_si, X.shape[0], users)
+                X_sinfo = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
+                X = torch.cat((X, X_sinfo), -1)
+            else:  #lastfm  # frappe
+                cat_mx = []
+                for col in aux_si.columns[2:]:
+                    # context_as_userfeat
+                    si_extension = incorporate_sinfo_by_dim(aux_si, X.shape[1], dims, col=col,
+                                                            contextasfeature=args.context_as_userfeat)
+                    X_sinfo = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.astype(str).astype(int).values)).to(device)
+                    cat_mx.append(X_sinfo)
+                X_sinfo = torch.cat(cat_mx, -1)
+                X = torch.cat((X, X_sinfo), -1)
 
         # We retrieve the graph's edges and send both them and graph to device in the next two lines
         edge_idx, edge_attr = from_scipy_sparse_matrix(adj_mx)
         edge_idx = edge_idx.to(device)
     train_dataset = PairData(train_set, sampler=sampler, adj_mx=adj_mx, is_training=True, context=args.context)
-
+    ####################################
+    ####################################
     print('='*50, '\n')
     # begin tuning here
     tune_log_path = 'tune_logs'
@@ -245,10 +292,12 @@ if __name__ == '__main__':
     # max_evals = 10 if args.dataset == 'ml-1m' else 50
     max_evals = 10
     string = 'NOCONTEXT' if not args.context else ''
+    mh = f'MH={args.mh}' if args.mh >1 else ''
     string2 = 'UII' if args.uii else 'UIC'
     si_str = 'SINFO' if args.side_information else ''
-    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_{string}_{string2}_GCE={args.gce}_{si_str}_'
-    f'{args.dataset}_{args.prepro}_{args.val_method}_max_evals={max_evals}.csv',
+    context_type = args.context_type if args.dataset == 'frappe' else ""
+    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_{context_type}_{string}_{string2}_GCE={args.gce}_{mh}_{si_str}_'
+    f'{args.dataset}_{args.prepro}_{args.val_method}_context_as_userfeat={args.context_as_userfeat}_max_evals={max_evals}.csv',
              'w', encoding='utf-8')
     f.write('HR, NDCG, best_epoch, num_ng, factors, dropout, lr, batch_size, reg_1, reg_2' + '\n')
     f.flush()

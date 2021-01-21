@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy.io as sio
 from tqdm import tqdm
-from daisy.utils.data import incorporate_gender
+from daisy.utils.data import incorporate_in_ml100k
 from scipy.sparse import csr_matrix
 
 from collections import defaultdict
@@ -50,7 +50,7 @@ def filter_users_and_items(df, num_users=None, freq_items=None, keys=['user', 'i
 
 
 def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False,
-              gce_flag=False, cut_down_data=False, side_info=False):
+              gce_flag=False, cut_down_data=False, side_info=False, context_type='', context_as_userfeat=False):
     """
     Method of loading certain raw data
     Parameters
@@ -114,29 +114,59 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
     elif src == 'music':
         df = pd.read_csv(f'./data/{src}-context/train.csv')
-
-        df.rename(columns={'user_id': 'user', 'track_id': 'item', 'created_at': 'timestamp'}, inplace=True)
-        df = df[['user', 'item', 'timestamp']]
+        if side_info:
+            # ['user_id', 'track_id', 'hashtag', 'created_at', 'score', 'lang', 'tweet_lang', 'time_zone',
+            # 'instrumentalness', 'liveness', 'speechiness', 'danceability', 'valence', 'loudness', 'tempo',
+            # 'acousticness', 'energy', 'mode', 'key', 'rating']
+            df.rename(columns={'user_id': 'user', 'track_id': 'item', 'created_at': 'timestamp', 'speechiness': 'side_info'},
+                      inplace=True)
+            df = df[['user', 'item', 'timestamp', 'side_info']]
+            # PREPROCESS SPEECHINESS # VALUE 10 FOR NON EXISTING FEATURE
+            df['side_info'] = df['side_info'].round(1)
+            df['side_info'] = df['side_info']*10
+            df['side_info'] = df['side_info'].fillna(10)
+            df['side_info'] = df['side_info'].astype(int)
+        else:
+            df.rename(columns={'user_id': 'user', 'track_id': 'item', 'created_at': 'timestamp'}, inplace=True)
+            df = df[['user', 'item', 'timestamp']]
         # df = df.query('rating >= 4').reset_index(drop=True)
         df = convert_unique_idx(df, 'user')
         df = convert_unique_idx(df, 'item')
-        df['rating'] = 1.0
-        df = filter_users_and_items(df, num_users=4000, freq_items=50, keys=['user', 'item'])  # 18508 songs - 3981 users
+        df = filter_users_and_items(df, num_users=3000, freq_items=20, keys=['user', 'item'])  # 18508 songs - 3981 users
+        # FILTER USERS WHITH LESS THAN 4 INTERACTIONS
+        df_aux = df.groupby('user').count().reset_index()[['user', 'item']]
+        indexes = df_aux[df_aux['item'] >= 3]['user'].index
+        df = df[df['user'].isin(indexes)]
 
+        df['rating'] = 1.0
         df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
         df['timestamp'] = df.timestamp.astype('int64') // 10 ** 9
+        prepro = 'origin'
 
     elif src == 'frappe':
+        df1 = pd.read_csv(f'./data/{src}/{src}_xin/train.csv', sep=',', header=None)
+        df2 = pd.read_csv(f'./data/{src}/{src}_xin/test.csv', sep=',', header=None)
+        df = pd.concat([df1, df2])
+
+        df['item'] = df[1].apply(lambda x: x.split('-')[0])
+        df['i-feature'] = df[1].apply(lambda x: x.split('-')[1])
+
+        df['user'] = df[0].apply(lambda x: x.split('-')[0])
+        df['user-context'] = df[0].apply(lambda x: '-'.join(x.split('-')[1:]))
+
         # http://web.archive.org/web/20180422190150/http://baltrunas.info/research-menu/frappe
         # columNames = ['labels', 'user', 'item', 'daytime', 'weekday', 'isweekend', 'homework', 'cost', 'weather',
         #               'country', 'city']
+        context_type = ['daytime', 'weekday', 'isweekend', 'homework', 'cost', 'weather', 'country', 'city']
         # df = pd.read_csv(f'./data/{src}/{src}.csv', sep=' ', engine='python', names=columNames)
         df = pd.read_csv(f'./data/{src}/{src}.csv', sep='\t')
 
         # TODO: select one context
         if context:
-            df = df[['user', 'item', 'daytime']]
-            df = convert_unique_idx(df, 'daytime')
+            # context_type
+            df = df[['user', 'item']+context_type]
+            for context_aux in context_type:
+                df = convert_unique_idx(df, context_aux)
         else:
             df = df[['user', 'item']]
         # treat weight as interaction, as 1
@@ -167,13 +197,45 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
     elif src == 'lastfm':
-        # user_artists.dat
-        df = pd.read_csv(f'./data/{src}/user_artists.dat', sep='\t')
-        df.rename(columns={'userID': 'user', 'artistID': 'item', 'weight': 'rating'}, inplace=True)
-        # treat weight as interaction, as 1
-        df['rating'] = 1.0
-        # fake timestamp column
-        df['timestamp'] = 1
+
+        # if not os.path.exists(f'./data/{src}/1k_dataset.csv'):
+        #
+        #     df = pd.read_csv(f'./data/{src}-dataset-1K/userid-timestamp-artid-artname-traid-traname.tsv',
+        #                      sep='\t', names=['user', 'timestamp', 'artist', 'artist_name', 'item', 'item_name'],
+        #                      engine='python')
+        #     df['rating'] = 1.0
+        #     df = df[['user', 'item', 'artist', 'rating', 'timestamp']]
+        #     df = filter_users_and_items(df, num_users=1000, freq_items=20, keys=['user', 'item'])  # 35422 books
+        #
+        #     df.to_csv(f'./data/{src}/1k_dataset.csv', sep=',', index=False)
+        #
+        # else:
+        #     df = pd.read_csv(f'./data/{src}/1k_dataset.csv', sep=',')
+        #     df.rename(columns={'artist': 'side_info'}, inplace=True)
+
+        # XIN_XIN: user_artists.dat     1.000 (414) , 20.301 (14.387) , 214.574 (SI)
+        if not os.path.exists(f'./data/{src}/dataset.csv'):
+            df1 = pd.read_csv(f'./data/{src}/train.csv', sep=',', names=['user', 'item', 'rating', 'timestamp'])
+            df2 = pd.read_csv(f'./data/{src}/test.csv', sep=',', names=['user', 'item', 'rating', 'timestamp'])
+            df = pd.concat([df1, df2])
+
+            df['user-feat'] = df['user'].apply(lambda x: x.split('-')[1])  #previous item
+            df['user'] = df['user'].apply(lambda x: x.split('-')[0])
+            df['item-feat'] = df['item'].apply(lambda x: x.split('-')[1])  #artist
+            df['item'] = df['item'].apply(lambda x: x.split('-')[0])
+
+            df.to_csv(f'./data/{src}/dataset.csv', sep=',', index=False)
+        else:
+            df = pd.read_csv(f'./data/{src}/dataset.csv', sep=',')
+
+        if context_as_userfeat:
+            df = df[['user', 'item', 'user-feat', 'item-feat', 'rating', 'timestamp']]
+            df['timestamp'] = 1
+        else:
+            df = df[['user', 'item', 'item-feat', 'rating', 'timestamp']]
+
+        # df = pd.read_csv(f'./data/{src}/user_artists.dat', sep='\t')
+        # df.rename(columns={'userID': 'user', 'artistID': 'item', 'weight': 'rating'}, inplace=True)
 
     elif src == 'bx':
         df = pd.read_csv(f'./data/{src}/BX-Book-Ratings.csv', delimiter=";", encoding="latin1")
@@ -252,6 +314,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
     # which type of pre-dataset will use
     if prepro == 'origin':
+        # if prepro == 'origin':
         pass
     elif prepro.endswith('filter'):
         pattern = re.compile(r'\d+')
@@ -322,8 +385,14 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     df['user'] = pd.Categorical(df['user']).codes
     df['item'] = pd.Categorical(df['item']).codes
 
+    if 'user-feat' in df.columns:
+        df['user-feat'] = pd.Categorical(df['user-feat']).codes
+    if 'item-feat' in df.columns:
+        df['item-feat'] = pd.Categorical(df['item-feat']).codes
+
     user_num = df['user'].nunique()
     item_num = df['item'].nunique()
+
 
     # ####################################################################
     # if side_info and src == 'ml-100k':
@@ -331,13 +400,14 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     #     si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
     #     si = si[['item', 'side_info']]
     #     # if df['item'].min() > 0:  # Reindex items
-    #     si_extension = incorporate_gender(si, X.shape[0], unique_original_items, user_num)
+    #     si_extension = incorporate_in_ml100k(si, X.shape[0], unique_original_items, user_num)
     #     # TODO: INCORPORATE si_extension to X
     #     X_gender_mx = csr_matrix(si_extension.values)
     ####################################################################
 
     print(f'Finish loading [{src}]-[{prepro}] dataset with [context == {context}] and [GCE == {gce_flag}]')
-
+    # embed()
+    # print(df.nunique())
     return df, user_num, item_num, unique_original_items
 
 

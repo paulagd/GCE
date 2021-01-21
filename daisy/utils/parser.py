@@ -10,6 +10,9 @@ def parse_args():
                         default=100,
                         help='tuning epochs')
     parser.add_argument("--logs", action="store_false", default=True, help="Enables logs")
+    parser.add_argument("--rankall", action="store_true", default=False, help="Enables rank between all items")
+    parser.add_argument("--context_as_userfeat", action="store_true", default=False,
+                        help="Enables using context as user multihot features")
     parser.add_argument("--save_initial_weights", action="store_true", default=False, help="Enables saving epoch 0 weights.")
     parser.add_argument("--load_init_weights", action="store_true", default=False, help="Enables loading init weights")
     parser.add_argument("--not_early_stopping", action="store_true", default=False, help="Enables not doing early stopping")
@@ -24,12 +27,20 @@ def parse_args():
                         help='activate if we want to perform neg_sampling in each epoch')
     parser.add_argument('--context', action='store_false', default=True,
                         help='activate if do not want to add context')
+    parser.add_argument('--context_type',
+                        type=str,
+                        default='cost',
+                        help='type context frappe')
     parser.add_argument('--gce', action='store_true', default=False,
                         help='activate to use GCE layer instead of current embbedding layer')
     parser.add_argument('--side_information',
                         action='store_true',
                         default=False,
                         help='activate to use side_information features')
+    parser.add_argument('--actors',
+                        action='store_true',
+                        default=False,
+                        help='activate to use ACTORS appended to side_information features')
     # parser.add_argument('--reg2',
     #                     action='store_true',
     #                     default=False,
@@ -60,7 +71,7 @@ def parse_args():
                         help='select dataset')
     parser.add_argument('--prepro', 
                         type=str, 
-                        default='10filter',
+                        default='origin',
                         help='dataset preprocess op.: origin/Ncore/filter')
     parser.add_argument('--topk', 
                         type=int, 

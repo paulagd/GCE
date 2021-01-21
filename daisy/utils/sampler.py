@@ -90,6 +90,7 @@ class Sampler(object):
         neg_set = []
         uni_num = int(self.num_ng * (1 - self.sample_ratio))
         ex_num = self.num_ng - uni_num
+        
         if not(pair_pos is None):
             for _, row in tqdm(sampled_df.iterrows(), desc="Negative sampling...", total=len(sampled_df)):
                 u = int(row['user'])
