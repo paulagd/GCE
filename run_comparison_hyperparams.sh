@@ -20,7 +20,7 @@ echo "Starting tunning parameters experiments in dataset $1 ..."
 ##echo "DONE MF TUNNING"
 #python tune.py --dataset $1 --algo_name fm --uii --not_early_stopping --tune_epochs 50
 #echo "DONE FM TUNNING"
-##
+#
 echo "Starting UIC EXPERIMENTS..."
 
 #python tune.py --dataset $1 --algo_name mf --not_early_stopping --tune_epochs 50
@@ -40,13 +40,16 @@ echo "Starting UIC EXPERIMENTS..."
 #
 #python tune.py --dataset $1 --algo_name mf --not_early_stopping --gce --tune_epochs 50
 #echo "DONE MF TUNNING - GCE"
-#python tune.py --dataset $1 --algo_name fm --not_early_stopping --gce --tune_epochs 50
-#echo "DONE FM TUNNING - GCE"
+python tune.py --dataset $1 --algo_name fm --not_early_stopping --gce --tune_epochs 50
+echo "DONE FM TUNNING - GCE"
 
-echo "Starting Multi hop 2 -- GRAPH - UIC EXPERIMENTS..."
+#echo "Starting Multi hop 2 -- GRAPH - UIC EXPERIMENTS..."
 
 #python tune.py --dataset $1 --algo_name mf --not_early_stopping --gce --tune_epochs 50
 #echo "DONE MF TUNNING - GCE"
 #python tune.py --dataset $1 --algo_name fm --not_early_stopping --gce --mh 2 --tune_epochs 50
 #echo "DONE FM TUNNING - GCE"
 
+#echo "Starting SINFO DRUG AND DISEASE..."
+#
+#python tune.py --dataset $1 --algo_name fm --not_early_stopping --gce --side_information --context_as_userfeat --tune_epochs 50

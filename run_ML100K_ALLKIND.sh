@@ -8,8 +8,8 @@ echo "Starting original NO CONTEXT experiments $1 ..."
 #echo "Starting NO CONTEXT EXPERIMENTS..."
 #python main.py --dataset $1 --algo_name mf --context --epochs $2 --lr 0.001 --batch_size 512 --dropout 0 --not_early_stopping > results/no_context/outputs_$1/reindexed_$1_mf_epochs=$2.txt
 #echo "DONE MF REINDEXED" #done
-python main.py --dataset $1 --algo_name fm --rankall --context --epochs $2 --lr 0.001 --batch_size 2048 --dropout 0.5 --not_early_stopping > results/no_context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
-echo "DONE FM REINDEXED"  #done
+#python main.py --dataset $1 --algo_name fm --rankall --context --epochs $2 --lr 0.001 --batch_size 2048 --dropout 0.5 --not_early_stopping > results/no_context/outputs_$1/reindexed_$1_fm_epochs=$2.txt
+#echo "DONE FM REINDEXED"  #done
 #
 
 echo "Starting CONTEXT EXPERIMENTS..."
@@ -23,8 +23,8 @@ echo "Starting CONTEXT EXPERIMENTS..."
 echo "Starting UIC EXPERIMENTS..."
 #python main.py --dataset $1 --algo_name mf --save_initial_weights --epochs $2 --lr 0.001 --batch_size 512 --dropout 0.15 --not_early_stopping > results/context/outputs_$1/UIC_reindexed_$1_mf_epochs=$2.txt
 #echo "DONE MF REINDEXED-UIC" #done
-python main.py --dataset $1 --algo_name fm --rankall --save_initial_weights --epochs $2 --lr 0.0005 --batch_size 512 --dropout 0 --not_early_stopping > results/context/outputs_$1/UIC_reindexed_$1_fm_epochs=$2.txt
-echo "DONE FM REINDEXED-UIC"  #done
+#python main.py --dataset $1 --algo_name fm --rankall --save_initial_weights --epochs $2 --lr 0.0005 --batch_size 512 --dropout 0 --not_early_stopping > results/context/outputs_$1/UIC_reindexed_$1_fm_epochs=$2.txt
+#echo "DONE FM REINDEXED-UIC"  #done
 #
 echo "Starting GRAPH EXPERIMENTS..."
 #echo "Starting GCE-UII EXPERIMENTS..."
@@ -35,8 +35,8 @@ echo "Starting GRAPH EXPERIMENTS..."
 echo "Starting GCE-UIC EXPERIMENTS..."
 #python main.py --dataset $1 --algo_name mf --save_initial_weights --gce --epochs $2 --lr 0.005 --batch_size 512 --dropout 0.5 --not_early_stopping > results/context/outputs_$1/UIC_graph_$1_mf_epochs=$2.txt
 #echo "DONE MF GCE-UIC"  # doing script
-python main.py --dataset $1 --algo_name fm --rankall --save_initial_weights --gce --epochs $2 --lr 0.005 --batch_size 512 --dropout 0.5 --not_early_stopping > results/context/outputs_$1/UIC_graph_$1_fm_epochs=$2.txt
-echo "DONE FM GCE-UIC"  # doing script
+#python main.py --dataset $1 --algo_name fm --rankall --save_initial_weights --gce --epochs $2 --lr 0.005 --batch_size 512 --dropout 0.5 --not_early_stopping > results/context/outputs_$1/UIC_graph_$1_fm_epochs=$2.txt
+#echo "DONE FM GCE-UIC"  # doing script
 
 echo "Starting GRAPH EXPERIMENTS WITH GENDER SIDE INFO ON X MATRIX..."
 #echo "Starting GCE-UII EXPERIMENTS..."

@@ -355,7 +355,7 @@ def incorporate_in_ml100k(si, max_dim, unique_original_items, users):
     # FILTER JUST USERS THAT WERE LEFT AFTER PREPROCESSING
     si = si[si.item.isin(unique_original_items)]
     assert unique_original_items.min() == si['item'].min()
-    assert unique_original_items.max() == si['item'].max()
+    assert unique_original_items.max() == si['item'].max() + 1
 
     si['item'] = pd.Categorical(si['item']).codes
     si['item'] = si['item'] + users

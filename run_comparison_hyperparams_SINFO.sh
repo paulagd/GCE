@@ -13,10 +13,10 @@ echo "Starting tunning SINFO parameters experiments in dataset $1 ..."
 #echo "DONE FM TUNNING - GCE- SINFO - UII" #(doing)
 
 echo "Starting UIC EXPERIMENTS..."
-python tune.py --dataset $1 --algo_name mf --not_early_stopping --gce --side_information --actors --tune_epochs 50
-echo "DONE MF TUNNING - GCE - SINFO- UIC --actors "
-python tune.py --dataset $1 --algo_name fm --not_early_stopping --gce --side_information --actors --tune_epochs 50
-echo "DONE FM TUNNING - GCE- SINFO - UIC --actors "  #( doing aux2)
+#python tune.py --dataset $1 --algo_name mf --not_early_stopping --gce --side_information --actors --tune_epochs 50
+#echo "DONE MF TUNNING - GCE - SINFO- UIC --actors "
+python tune.py --dataset $1 --algo_name fm --not_early_stopping --gce --side_information --tune_epochs 50
+echo "DONE FM TUNNING - GCE- SINFO - UIC "  #( doing aux2)
 
 #python tune.py --dataset $1 --algo_name nfm --not_early_stopping --gce --side_information
 #echo "DONE NFM TUNNING - GCE - SINFO"
@@ -25,3 +25,6 @@ echo "DONE FM TUNNING - GCE- SINFO - UIC --actors "  #( doing aux2)
 #python tune.py --dataset $1 --algo_name ncf --not_early_stopping --gce --side_information
 #echo "DONE NCF TUNNING - GCE - SINFO"
 
+#echo "Starting SINFO DRUG AND DISEASE..."
+#
+#python tune.py --dataset $1 --algo_name fm --not_early_stopping --gce --side_information --context_as_userfeat

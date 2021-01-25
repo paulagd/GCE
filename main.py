@@ -26,6 +26,7 @@ from IPython import embed
 def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, sampler, context_flag=False, tune=False):
     test_ucands = build_candidates_set(test_ur, total_train_ur, item_pool, candidates_num, context_flag=context_flag)
 
+    #embed()
     # get predict result
     print('')
     print('Generate recommend list...')
@@ -117,7 +118,7 @@ if __name__ == '__main__':
                                                         side_info=args.side_information, context_type=args.context_type,
                                                         context_as_userfeat=args.context_as_userfeat)
     if args.side_information and not args.dataset == 'ml-100k':
-        if args.dataset in ['lastfm']:
+        if args.dataset in ['lastfm', 'drugs']:
             aux_si = df.iloc[:, :-2].copy() # take all columns unless user, rating and timestamp
             if args.context_as_userfeat:
                 args.context = False
@@ -140,7 +141,6 @@ if __name__ == '__main__':
             # check last number is positive
             # np.max(df.to_numpy(), axis=0)
             assert df['item'].tail().values[-1] > 0
-
     ''' SPLIT DATA '''
     train_set, test_set = split_test(df, args.test_method, args.test_size)
     train_set, val_set, _ = split_validation(train_set, val_method=args.test_method, list_output=False)
@@ -189,7 +189,8 @@ if __name__ == '__main__':
                 # si = si[['item', 'side_info']]
                 if df['item'].min() > 0:    # Reindex items
                     # TODO: INCORPORATE si_extension to X
-                    si_extension = incorporate_in_ml100k(si[['item', 'side_info']], X.shape[1], unique_original_items, users)
+                    si_extension = incorporate_in_ml100k(si[['item', 'side_info']], X.shape[1], unique_original_items,
+                                                         users)
                     X_gender = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
                     if args.actors:
                         si.drop(columns=['side_info'], inplace=True)
@@ -204,7 +205,7 @@ if __name__ == '__main__':
                 si_extension = incorporate_sinfo_by_dim(aux_si, X.shape[1], users)
                 X_sinfo = sparse_mx_to_torch_sparse_tensor(csr_matrix(si_extension.values)).to(device)
                 X = torch.cat((X, X_sinfo), -1)
-            else:  #lastfm  # frappe
+            else:  #lastfm  # drugs
                 cat_mx = []
                 for col in aux_si.columns[2:]:
                     # context_as_userfeat

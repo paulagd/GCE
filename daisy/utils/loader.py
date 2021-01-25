@@ -77,6 +77,19 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
         if cut_down_data:
             df = cut_down_data_half(df)  # from 100k to 49.760 interactions
 
+    elif src == 'drugs':
+        # if args.context:
+        #     df = pd.read_csv(f'./data/{src}/train_data_allcontext.csv', engine='python', index_col=0)
+        #     df.rename(columns={'drug': 'user', 'disease': 'item'}, inplace=True)
+        #     df = df[['user', 'item', 'context']]
+        df = pd.read_csv(f'./data/{src}/train_data.csv', engine='python', index_col=0)
+        df.rename(columns={'drug': 'user', 'disease': 'item', 'proteins_drug': 'user-feat',
+                           'proteins': 'item-feat'}, inplace=True)
+
+        df = df[['user', 'item', 'user-feat', 'item-feat']]
+        df['timestamp'] = 1
+        df['rating'] = 1
+
     elif src == 'ml-1m':
         df = pd.read_csv(f'./data/{src}/ratings.dat', sep='::', header=None, 
                          names=['user', 'item', 'rating', 'timestamp'], engine='python')
@@ -214,28 +227,45 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
         #     df.rename(columns={'artist': 'side_info'}, inplace=True)
 
         # XIN_XIN: user_artists.dat     1.000 (414) , 20.301 (14.387) , 214.574 (SI)
-        if not os.path.exists(f'./data/{src}/dataset.csv'):
-            df1 = pd.read_csv(f'./data/{src}/train.csv', sep=',', names=['user', 'item', 'rating', 'timestamp'])
-            df2 = pd.read_csv(f'./data/{src}/test.csv', sep=',', names=['user', 'item', 'rating', 'timestamp'])
-            df = pd.concat([df1, df2])
+        # xin_file = f'./data/{src}/dataset.csv'
+        # if not os.path.exists(xin_file):
+        #     df1 = pd.read_csv(f'./data/{src}/train.csv', sep=',', names=['user', 'item', 'rating', 'timestamp'])
+        #     df2 = pd.read_csv(f'./data/{src}/test.csv', sep=',', names=['user', 'item', 'rating', 'timestamp'])
+        #     df = pd.concat([df1, df2])
+        #
+        #     df['user-feat'] = df['user'].apply(lambda x: x.split('-')[1])  #previous item
+        #     df['user'] = df['user'].apply(lambda x: x.split('-')[0])
+        #     df['item-feat'] = df['item'].apply(lambda x: x.split('-')[1])  #artist
+        #     df['item'] = df['item'].apply(lambda x: x.split('-')[0])
+        #
+        #     df.to_csv(f'./data/{src}/dataset.csv', sep=',', index=False)
+        # else:
+        #     df = pd.read_csv(f'./data/{src}/dataset.csv', sep=',')
 
-            df['user-feat'] = df['user'].apply(lambda x: x.split('-')[1])  #previous item
-            df['user'] = df['user'].apply(lambda x: x.split('-')[0])
-            df['item-feat'] = df['item'].apply(lambda x: x.split('-')[1])  #artist
-            df['item'] = df['item'].apply(lambda x: x.split('-')[0])
+        file_path = f'./data/{src}-dataset-1K/'
 
-            df.to_csv(f'./data/{src}/dataset.csv', sep=',', index=False)
+        if not os.path.exists(f'{file_path}dataset.csv'):
+
+            df = pd.read_csv(f'{file_path}userid-timestamp-artid-artname-traid-traname.tsv', sep='\t',
+                             names=['userid', 'timestamp', 'artist-id', 'artist-name', 'track-id', 'track-name'],
+                             error_bad_lines=False)
+            df['rating'] = 1
+
+            df.rename(columns={'userid': 'user', 'track-id': 'item', 'artist-id': 'item-feat'}, inplace=True)
+            df = df.dropna(subset=['user', 'item'])
+
+            df = convert_unique_idx(df, 'user')
+            df = convert_unique_idx(df, 'item')
+            df = convert_unique_idx(df, 'item-feat')
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = filter_users_and_items(df, num_users=1000, freq_items=20, keys=['user', 'item'])
+
+            df.to_csv(f'{file_path}/dataset.csv', sep=',', index=False)
         else:
-            df = pd.read_csv(f'./data/{src}/dataset.csv', sep=',')
-
-        if context_as_userfeat:
-            df = df[['user', 'item', 'user-feat', 'item-feat', 'rating', 'timestamp']]
-            df['timestamp'] = 1
-        else:
-            df = df[['user', 'item', 'item-feat', 'rating', 'timestamp']]
-
-        # df = pd.read_csv(f'./data/{src}/user_artists.dat', sep='\t')
-        # df.rename(columns={'userID': 'user', 'artistID': 'item', 'weight': 'rating'}, inplace=True)
+            print('LOADED POST-PROCESSED DB')
+            df = pd.read_csv(f'{file_path}/dataset.csv', sep=',')
+            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+            df['timestamp'] = df.timestamp.astype('int64') // 10 ** 9
 
     elif src == 'bx':
         df = pd.read_csv(f'./data/{src}/BX-Book-Ratings.csv', delimiter=";", encoding="latin1")

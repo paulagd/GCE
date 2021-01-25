@@ -44,19 +44,19 @@ python main.py --dataset $1 --algo_name fm --save_initial_weights --gce --epochs
 #echo "DONE FM GCE-UIC"  # doing script
 
 
-echo "Starting RANDOM CONTEXT EXPERIMENTS..."
-
-echo "Starting UIC EXPERIMENTS..."
-python main.py --dataset $1 --algo_name mf --random_context --epochs $2 --lr 0.0005 --batch_size 2048 --dropout 0 --not_early_stopping > results/context/outputs_$1/randomC_UIC_reindexed_$1_mf_epochs=$2.txt
-echo "DONE MF REINDEXED-UIC"
-python main.py --dataset $1 --algo_name fm --random_context --epochs $2 --lr 0.0005 --batch_size 2048 --dropout 0.15 --not_early_stopping > results/context/outputs_$1/randomC_UIC_reindexed_$1_fm_epochs=$2.txt
-echo "DONE FM REINDEXED-UIC"
-
-
-echo "Starting RANDOM CONTEXT EXPERIMENTS with INIT WEIGHTS LOADED..."
-
-echo "Starting UIC EXPERIMENTS..."
-python main.py --dataset $1 --algo_name mf --load_init_weights --random_context --epochs $2 --lr 0.0005 --batch_size 2048 --dropout 0 --not_early_stopping > results/context/outputs_$1/INIT_randomC_UIC_reindexed_$1_mf_epochs=$2.txt
-echo "DONE MF REINDEXED-UIC"
-python main.py --dataset $1 --algo_name fm --load_init_weights --random_context --epochs $2 --lr 0.0005 --batch_size 2048 --dropout 0.15 --not_early_stopping > results/context/outputs_$1/INIT_randomC_UIC_reindexed_$1_fm_epochs=$2.txt
-echo "DONE FM REINDEXED-UIC"
+#echo "Starting RANDOM CONTEXT EXPERIMENTS..."
+#
+#echo "Starting UIC EXPERIMENTS..."
+#python main.py --dataset $1 --algo_name mf --random_context --epochs $2 --lr 0.0005 --batch_size 2048 --dropout 0 --not_early_stopping > results/context/outputs_$1/randomC_UIC_reindexed_$1_mf_epochs=$2.txt
+#echo "DONE MF REINDEXED-UIC"
+#python main.py --dataset $1 --algo_name fm --random_context --epochs $2 --lr 0.0005 --batch_size 2048 --dropout 0.15 --not_early_stopping > results/context/outputs_$1/randomC_UIC_reindexed_$1_fm_epochs=$2.txt
+#echo "DONE FM REINDEXED-UIC"
+#
+#
+#echo "Starting RANDOM CONTEXT EXPERIMENTS with INIT WEIGHTS LOADED..."
+#
+#echo "Starting UIC EXPERIMENTS..."
+#python main.py --dataset $1 --algo_name mf --load_init_weights --random_context --epochs $2 --lr 0.0005 --batch_size 2048 --dropout 0 --not_early_stopping > results/context/outputs_$1/INIT_randomC_UIC_reindexed_$1_mf_epochs=$2.txt
+#echo "DONE MF REINDEXED-UIC"
+#python main.py --dataset $1 --algo_name fm --load_init_weights --random_context --epochs $2 --lr 0.0005 --batch_size 2048 --dropout 0.15 --not_early_stopping > results/context/outputs_$1/INIT_randomC_UIC_reindexed_$1_fm_epochs=$2.txt
+#echo "DONE FM REINDEXED-UIC"
