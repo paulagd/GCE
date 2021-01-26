@@ -78,17 +78,26 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             df = cut_down_data_half(df)  # from 100k to 49.760 interactions
 
     elif src == 'drugs':
-        # if args.context:
-        #     df = pd.read_csv(f'./data/{src}/train_data_allcontext.csv', engine='python', index_col=0)
-        #     df.rename(columns={'drug': 'user', 'disease': 'item'}, inplace=True)
-        #     df = df[['user', 'item', 'context']]
-        df = pd.read_csv(f'./data/{src}/train_data.csv', engine='python', index_col=0)
-        df.rename(columns={'drug': 'user', 'disease': 'item', 'proteins_drug': 'user-feat',
-                           'proteins': 'item-feat'}, inplace=True)
+        union = True
+        if union == True:
+            df = pd.read_csv(f'./data/{src}/train_data_contextUNION_sideeffect.csv', engine='python', index_col=0)
+            df.drop(columns=['context'], inplace=True)
+            df.rename(columns={'drug': 'user', 'disease': 'item',
+                               'context_union': 'context',
+                               'proteins': 'item-feat', 'side_effect': 'user-feat'}, inplace=True)
+        else:
+            df = pd.read_csv(f'./data/{src}/train_data_allcontext_sideeffect.csv', engine='python', index_col=0)
+            df.rename(columns={'drug': 'user', 'disease': 'item',
+                               # 'proteins_drug': 'user-feat',
+                               'proteins': 'item-feat', 'side_effect': 'user-feat'}, inplace=True)
+        if context_as_userfeat:
+            df = df[['user', 'item', 'user-feat', 'item-feat']]
+        else:
+            df = df[['user', 'item', 'context', 'user-feat']]
 
-        df = df[['user', 'item', 'user-feat', 'item-feat']]
         df['timestamp'] = 1
         df['rating'] = 1
+        df['array_context_flag'] = True
 
     elif src == 'ml-1m':
         df = pd.read_csv(f'./data/{src}/ratings.dat', sep='::', header=None, 
@@ -259,11 +268,29 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             df = convert_unique_idx(df, 'item-feat')
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df = filter_users_and_items(df, num_users=1000, freq_items=20, keys=['user', 'item'])
-
             df.to_csv(f'{file_path}/dataset.csv', sep=',', index=False)
+
+            # TODO: TAKE LAST DAY:
+            year = 2009
+            df_year = pd.DataFrame([])
+            for user in range(np.max(df['user'])):
+                u = df[df['user'] == user].sort_values(by='timestamp', ascending=False)
+                u['timestamp'] = pd.to_datetime(u['timestamp'], unit='s')
+                include = u[u['timestamp'].dt.year == year]
+                df_year = df_year.append(include)
+            df_year.to_csv(f'{file_path}/dataset_{year}.csv', sep=',', index=False)
+            '''
+            year --> 2009
+            user            774
+            item           4985
+            item-feat       794
+            rating            1
+            timestamp    412008
+            '''
+
         else:
             print('LOADED POST-PROCESSED DB')
-            df = pd.read_csv(f'{file_path}/dataset.csv', sep=',')
+            df = pd.read_csv(f'{file_path}/dataset_2009.csv', sep=',')
             df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
             df['timestamp'] = df.timestamp.astype('int64') // 10 ** 9
 
@@ -424,6 +451,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     item_num = df['item'].nunique()
 
 
+
     # ####################################################################
     # if side_info and src == 'ml-100k':
     #     si = pd.read_csv(f'./data/{src}/side-information.csv', index_col=0)
@@ -488,7 +516,11 @@ def get_ur(df, context=False, eval=False):
     ur = defaultdict(set)
     for _, row in df.iterrows():
         if context and not eval:
-            ur[int(row['user']), int(row['context'])].add(int(row['item']))
+            if 'array_context_flag' in df.columns:
+                lst = np.append(int(row['user']), row['context']).tolist()
+                ur[tuple(lst)].add(int(row['item']))
+            else:
+                ur[int(row['user']), int(row['context'])].add(int(row['item']))
         else:
             ur[int(row['user'])].add(int(row['item']))
     return ur
@@ -587,15 +619,22 @@ def build_candidates_set(test_ur, train_ur, item_pool, candidates_num=1000, cont
         sample_num = candidates_num - len(v) if len(v) < candidates_num else 0
         if context_flag:
             user = k[0]
-            context = k[1]
+            # context = k[1:]
+            # if isinstance(context, list):
+            #     lst = np.append(int(row['user']), row['context']).tolist()
+            #     tup = tuple(lst)
+            # else:
+            #     tup = (user, context)
+
             sub_item_pool = item_pool - v - train_ur[user]  # remove GT & interacted 
             sample_num = min(len(sub_item_pool), sample_num)
             if sample_num == 0:
                 samples = random.sample(v, candidates_num)
-                test_ucands[(user, context)] = list(set(samples))
+                # test_ucands[(user, context)] = list(set(samples))
+                test_ucands[k] = list(set(samples))
             else:
                 samples = random.sample(sub_item_pool, sample_num)
-                test_ucands[(user, context)] = list(v | set(samples))
+                test_ucands[k] = list(v | set(samples))
         else:
             sub_item_pool = item_pool - v - train_ur[k]  # remove GT & interacted (with same context)
             sample_num = min(len(sub_item_pool), sample_num)

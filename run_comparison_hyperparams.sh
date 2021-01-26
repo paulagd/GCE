@@ -8,8 +8,8 @@ echo "Starting NO CONTEXT tunning parameters experiments in dataset $1 ..."
 ##
 #python tune.py --dataset $1 --algo_name mf --context --not_early_stopping --tune_epochs 50
 #echo "DONE MF TUNNING"
-python tune.py --dataset $1 --algo_name fm --context --not_early_stopping --tune_epochs 50
-echo "DONE FM TUNNING"
+#python tune.py --dataset $1 --algo_name fm --context --not_early_stopping --tune_epochs 50
+#echo "DONE FM TUNNING"
 ##
 ##
 echo "Starting tunning parameters experiments in dataset $1 ..."

@@ -93,7 +93,10 @@ class PairData(data.Dataset):
 
         if self.context:
             for u, i, c, r, js in self.neg_set:
-                u, i, c, r = int(u), int(i), int(c), np.float32(1)
+                if isinstance(c, list):
+                    u, i, r = int(u), int(i), np.float32(1)
+                else:
+                    u, i, c, r = int(u), int(i), int(c), np.float32(1)
                 if self.is_training:
                     for j in js:
                         self.features_fill.append([u, i, c, j, r])

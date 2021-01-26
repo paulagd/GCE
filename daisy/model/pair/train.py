@@ -66,7 +66,11 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
             user = user.to(device)
             item_i = item_i.to(device)
             item_j = item_j.to(device)
-            context = context.to(device) if context_flag else None
+            # embed()
+            if isinstance(context, list) and context_flag:
+                context = [c.to(device) for c in context]
+            else:
+                context = context.to(device) if context_flag else None
             label = label.to(device)
             # context = context.to(device) if context_flag else None
 

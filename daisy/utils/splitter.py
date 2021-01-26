@@ -18,7 +18,10 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
             user_u, item_i, context = items[0], items[1], items[2]
             user_u = user_u.to(device)
             item_i = item_i.to(device)
-            context = context.to(device) if args.context else None
+            if isinstance(context, list) and args.context:
+                context = [c.to(device) for c in context]
+            else:
+                context = context.to(device) if args.context else None
             prediction = model.predict(user_u, item_i, context)
             _, indices = torch.topk(prediction, args.topk)
             top_n = torch.take(torch.tensor(candidates[u]), indices).cpu().numpy()

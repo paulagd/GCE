@@ -17,11 +17,8 @@ def intersection(lst1, lst2):
         lst1 = [lst1]
     if not isinstance(lst2, list):
         lst2 = [lst2]
-    try:
-        lst3 = [value for value in lst1 if value in lst2]
-        return lst3
-    except:
-        embed()
+    lst3 = [value for value in lst1 if value in lst2]
+    return lst3
 
 
 def load_matrices(dataset_path):
@@ -43,125 +40,160 @@ def load_matrices(dataset_path):
 if __name__ == '__main__':
 
     data_path = f'./data/drugs/'
+    if not os.path.exists(f'{data_path}train_data_allcontext.csv'):
 
-    if not os.path.exists(f'{data_path}train_data.csv'):
-        
-        if not os.path.exists(f'{data_path}adjacency_mx.npy'):
-            # BUILD ADJACENCY MATRIX
+        if not os.path.exists(f'{data_path}train_data.csv'):
 
+            if not os.path.exists(f'{data_path}adjacency_mx.npy'):
+                # BUILD ADJACENCY MATRIX
+
+                drug_dis, drug_prot, prot_dis = load_matrices(data_path)
+
+                # mo = np.multiply.outer
+                drugs = drug_dis.shape[0]
+                proteins = prot_dis.shape[0]
+                diseases = drug_dis.shape[1]
+
+                # IDEA: 1. EXTEND DRUG_DIS
+                drug_drug = np.zeros((drugs, drugs))
+                diseases_diseases = np.zeros((diseases, diseases))
+                protein_protein = np.zeros((proteins, proteins))
+                # IDEA: 2. MAKE IT SYMMETRIC
+                # AXIS = 1  IS TO CONCATENATE NEXT
+                drug_dis_ext = np.concatenate((drug_drug, drug_dis), axis=1)  # (708, 6311)
+                drug_dis_T_extended = np.concatenate((drug_dis.T, diseases_diseases), axis=1)  # (5603, 6311)
+                # AXIS = 0  IS TO APPEND BELOW
+                ADJ = np.concatenate((drug_dis_ext, drug_dis_T_extended), axis=0)  # (6311, 6311)
+                # IDEA: 3. ADD PROTEIN (CONTEXT)
+                column_mx = np.concatenate((drug_prot, prot_dis.T), axis=0)   # (6311, 1512)
+                rows_mx = np.concatenate((drug_prot.T, prot_dis), axis=1)  # (1512, 6311)
+                # append zeros protein protein
+                column_mx = np.concatenate((column_mx, protein_protein), axis=0)  # (7823, 1512)
+                # merge all
+                ADJ = np.concatenate((ADJ, rows_mx), axis=0)  # (7823, 6311)
+                ADJ = np.concatenate((ADJ, column_mx), axis=1)  # (7823, 7823)
+
+                assert ADJ.shape[0] == ADJ.shape[1] == (drugs + proteins + diseases)
+
+                np.save(f'{data_path}adjacency_mx.npy', ADJ)
+                a = ADJ
+            else:
+                a = np.load(f'{data_path}adjacency_mx.npy')
+
+            # BUILD TRAINING DATA
+            drugs = 708
+            proteins = 1512
+            diseases = 5603
+
+            # for user in range(drugs):
+            # user = 0
+            # all_idx = np.where(a[user] == 1)[0]
+            # assert len(all_idx[all_idx < drugs]) == 0
+            # idx_items = all_idx[all_idx < (diseases + drugs)]
+            # idx_context = all_idx[all_idx >= (diseases + drugs)]
             drug_dis, drug_prot, prot_dis = load_matrices(data_path)
 
-            # mo = np.multiply.outer
-            drugs = drug_dis.shape[0]
-            proteins = prot_dis.shape[0]
-            diseases = drug_dis.shape[1]
+            drug_prot  # (708, 1512)
+            dis_prot = prot_dis.T  # (5603, 1512)
 
-            # IDEA: 1. EXTEND DRUG_DIS
-            drug_drug = np.zeros((drugs, drugs))
-            diseases_diseases = np.zeros((diseases, diseases))
-            protein_protein = np.zeros((proteins, proteins))
-            # IDEA: 2. MAKE IT SYMMETRIC
-            # AXIS = 1  IS TO CONCATENATE NEXT
-            drug_dis_ext = np.concatenate((drug_drug, drug_dis), axis=1)  # (708, 6311)
-            drug_dis_T_extended = np.concatenate((drug_dis.T, diseases_diseases), axis=1)  # (5603, 6311)
-            # AXIS = 0  IS TO APPEND BELOW
-            ADJ = np.concatenate((drug_dis_ext, drug_dis_T_extended), axis=0)  # (6311, 6311)
-            # IDEA: 3. ADD PROTEIN (CONTEXT)
-            column_mx = np.concatenate((drug_prot, prot_dis.T), axis=0)   # (6311, 1512)
-            rows_mx = np.concatenate((drug_prot.T, prot_dis), axis=1)  # (1512, 6311)
-            # append zeros protein protein
-            column_mx = np.concatenate((column_mx, protein_protein), axis=0)  # (7823, 1512)
-            # merge all
-            ADJ = np.concatenate((ADJ, rows_mx), axis=0)  # (7823, 6311)
-            ADJ = np.concatenate((ADJ, column_mx), axis=1)  # (7823, 7823)
+            drugs_si = pd.DataFrame(columns=('drug', 'proteins_drugs'))
+            for i, row in tqdm(enumerate(drug_prot), total=len(drug_prot)):
+                drugs_si.loc[i] = [i, [i for i, e in enumerate(row.tolist()[0]) if e == 1]]
 
-            assert ADJ.shape[0] == ADJ.shape[1] == (drugs + proteins + diseases)
+            diseases_si = pd.DataFrame(columns=('disease', 'proteins_disease'))
+            for i, row in tqdm(enumerate(dis_prot), total=len(dis_prot)):
+                diseases_si.loc[i] = [i, [i for i, e in enumerate(row.tolist()[0]) if e == 1]]
 
-            np.save(f'{data_path}adjacency_mx.npy', ADJ)
-            a = ADJ
+            drugs_si = drugs_si.mask(drugs_si.applymap(str).eq('[]'))
+            diseases_si = diseases_si.mask(diseases_si.applymap(str).eq('[]'))
+
+            drugs_si = drugs_si.fillna(proteins)
+            diseases_si = diseases_si.fillna(proteins)
+
+            #  GENERATE DB USER-ITEM
+            df = pd.DataFrame(columns=('drug', 'disease'))
+            for i, row in tqdm(enumerate(drug_dis), total=len(drug_dis), desc='generate db...'):
+                diseases_related = [i for i, e in enumerate(row.tolist()[0]) if e == 1]
+                for j in diseases_related:
+                    df = df.append({'drug': i, 'disease': j}, ignore_index=True)
+
+            df['disease'] = df['disease'] + drugs
+            diseases_si['disease'] = diseases_si['disease'] + drugs
+            # drugs_si.rename(columns={"protein": "proteins_drug"}, inplace=True)
+            # diseases_si.rename(columns={"protein": "proteins_disease"}, inplace=True)
+
+            df = pd.merge(df, drugs_si, how="left", on=["drug"])
+            df = pd.merge(df, diseases_si, how="left", on=["disease"])
+
+            df.to_csv(f'{data_path}train_data.csv')
         else:
-            a = np.load(f'{data_path}adjacency_mx.npy')
+            drugs = 708
+            proteins = 1512
+            diseases = 5603
+            df = pd.read_csv(f'{data_path}train_data.csv', index_col=0)
+            context_list = []
+            # proteins = 1512 == unknown context
+            for i, row in tqdm(df.iterrows(), total=len(df), desc='GENERATE INTERSECTION CONTEXT...'):
+                # row = df.iloc[0]
+                lst1 = ast.literal_eval(row['proteins_drug'])
+                lst2 = ast.literal_eval(row['proteins'])
+                context_list.append(intersection(lst1, lst2))
 
-        # BUILD TRAINING DATA
-        drugs = 708
-        proteins = 1512
-        diseases = 5603
+            df = df.assign(context=context_list)
 
-        # for user in range(drugs):
-        # user = 0
-        # all_idx = np.where(a[user] == 1)[0]
-        # assert len(all_idx[all_idx < drugs]) == 0
-        # idx_items = all_idx[all_idx < (diseases + drugs)]
-        # idx_context = all_idx[all_idx >= (diseases + drugs)]
-        drug_dis, drug_prot, prot_dis = load_matrices(data_path)
+            count_nontype = 0
+            for lst in df['context']:
+                if not type(lst) == np.float and proteins in lst and lst:
+                    count_nontype += 1
 
-        drug_prot  # (708, 1512)
-        dis_prot = prot_dis.T  # (5603, 1512)
+            df = df.mask(df.applymap(str).eq('[]'))
+            df = df.mask(df.applymap(str).eq('[1512]'))
 
-        drugs_si = pd.DataFrame(columns=('drug', 'proteins_drugs'))
-        for i, row in tqdm(enumerate(drug_prot), total=len(drug_prot)):
-            drugs_si.loc[i] = [i, [i for i, e in enumerate(row.tolist()[0]) if e == 1]]
+            print('DF HAS 71808/199214 NULL interactions')
 
-        diseases_si = pd.DataFrame(columns=('disease', 'proteins_disease'))
-        for i, row in tqdm(enumerate(dis_prot), total=len(dis_prot)):
-            diseases_si.loc[i] = [i, [i for i, e in enumerate(row.tolist()[0]) if e == 1]]
+            # CREATE DB JUST WITH CONTEXT
+            df1 = df.dropna()
+            df1.to_csv(f'{data_path}train_data_allcontext.csv')
 
-        drugs_si = drugs_si.mask(drugs_si.applymap(str).eq('[]'))
-        diseases_si = diseases_si.mask(diseases_si.applymap(str).eq('[]'))
-
-        drugs_si = drugs_si.fillna(proteins)
-        diseases_si = diseases_si.fillna(proteins)
-
-        #  GENERATE DB USER-ITEM
-        df = pd.DataFrame(columns=('drug', 'disease'))
-        for i, row in tqdm(enumerate(drug_dis), total=len(drug_dis), desc='generate db...'):
-            diseases_related = [i for i, e in enumerate(row.tolist()[0]) if e == 1]
-            for j in diseases_related:
-                df = df.append({'drug': i, 'disease': j}, ignore_index=True)
-
-        df['disease'] = df['disease'] + drugs
-        diseases_si['disease'] = diseases_si['disease'] + drugs
-        # drugs_si.rename(columns={"protein": "proteins_drug"}, inplace=True)
-        # diseases_si.rename(columns={"protein": "proteins_disease"}, inplace=True)
-
-        df = pd.merge(df, drugs_si, how="left", on=["drug"])
-        df = pd.merge(df, diseases_si, how="left", on=["disease"])
-
-        df.to_csv(f'{data_path}train_data.csv')
+            # CREATE DB FILLING UP EMPTY CONTEXT
+            df2 = df.fillna(proteins)
+            df2.to_csv(f'{data_path}train_data_allcontext_PLUSfaked.csv')
+            print('ALL DONE AND CSV SAVED')
     else:
-        drugs = 708
-        proteins = 1512
-        diseases = 5603
-        
-        df = pd.read_csv(f'{data_path}train_data.csv', index_col=0)
-        context_list = []
-        # proteins = 1512 == unknown context
-        for i, row in tqdm(df.iterrows(), total=len(df), desc='GENERATE INTERSECTION CONTEXT...'):
-            # row = df.iloc[0]
-            lst1 = ast.literal_eval(row['proteins_drug'])
-            lst2 = ast.literal_eval(row['proteins'])
-            context_list.append(intersection(lst1, lst2))
+        if not os.path.exists(f'{data_path}train_data_allcontext_sideeffect.csv'):
+            df = pd.read_csv(f'{data_path}train_data_allcontext.csv', index_col=0)
+            # IDEA: ADD SIDE INFO SIDE-EFFECTE D
+            drug_se = np.loadtxt(f"{data_path}mat_drug_se.txt", dtype='str', delimiter='\n')  #(708, 4192)
+            drug_se = convert_np_to_mx(drug_se)  #(708, 4192)
 
-        df = df.assign(context=context_list)
+            drugs_se = pd.DataFrame(columns=('drug', 'side_effect'))
+            for i, row in tqdm(enumerate(drug_se), total=len(drug_se)):
+                drugs_se.loc[i] = [i, [i for i, e in enumerate(row.tolist()[0]) if e == 1]]
 
-        count_nontype = 0
-        for lst in df['context']:
-            if not type(lst) == np.float and proteins in lst and lst:
-                count_nontype += 1
+            df = pd.merge(df, drugs_se, how="left", on=["drug"])
 
-        df = df.mask(df.applymap(str).eq('[]'))
-        df = df.mask(df.applymap(str).eq('[1512]'))
+            df.to_csv(f'{data_path}train_data_allcontext_sideeffect.csv')
+        else:
+            df = pd.read_csv(f'{data_path}train_data_allcontext_sideeffect.csv', index_col=0)
 
-        print('DF HAS 71808/199214 NULL interactions')
+            # MAKE UNION
+            drugs = 708
+            proteins = 1512
+            diseases = 5603
+            context_union = []
+            # proteins = 1512 == unknown contextd
 
-        # CREATE DB JUST WITH CONTEXT
-        df1 = df.dropna()
-        df1.to_csv(f'{data_path}train_data_allcontext.csv')
+            for i, row in tqdm(df.iterrows(), total=len(df), desc='GENERATE INTERSECTION CONTEXT...'):
+                # row = df.iloc[0]
+                lst1 = ast.literal_eval(row['proteins_drug'])
+                lst2 = ast.literal_eval(row['proteins'])
+                context_union.append(np.unique(lst1+lst2).tolist())
 
-        # CREATE DB FILLING UP EMPTY CONTEXT
-        df2 = df.fillna(proteins)
-        df2.to_csv(f'{data_path}train_data_allcontext_PLUSfaked.csv')
-        print('ALL DONE AND CSV SAVED')
-        
+            df = df.assign(context_union=context_union)
+            df.to_csv(f'{data_path}train_data_contextUNION_sideeffect.csv')
+
+
+
+
 
 

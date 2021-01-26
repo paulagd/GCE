@@ -75,9 +75,14 @@ class PairMF(nn.Module):
                 embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
                 embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
             else:
-                embeddings_ui = self.embeddings(torch.stack((u, i, context), dim=1))
-                embeddings_uj = self.embeddings(torch.stack((u, j, context), dim=1))
-                
+                if isinstance(context, list) and len(context) > 0:
+                    context = torch.stack(context, dim=1)
+                    embeddings_ui = self.embeddings(torch.cat((torch.stack((u, i), dim=1), context), dim=1))
+                    embeddings_uj = self.embeddings(torch.cat((torch.stack((u, j), dim=1), context), dim=1))
+                else:
+                    embeddings_ui = self.embeddings(torch.stack((u, i, context), dim=1))
+                    embeddings_uj = self.embeddings(torch.stack((u, j, context), dim=1))
+
             # ix = torch.bmm(embeddings[:, :1, :], embeddings[:, 1:, :].permute(0, 2, 1))
             pred_i = embeddings_ui.prod(dim=1).sum(dim=1)
             pred_j = embeddings_uj.prod(dim=1).sum(dim=1)

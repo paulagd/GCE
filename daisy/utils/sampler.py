@@ -47,7 +47,7 @@ class Sampler(object):
             for _, row in sampled_df.iterrows():
                 u = int(row['user'])
                 i = int(row['item'])
-                c = None if not context else int(row['context'])
+                c = None if not context else (row['context'] if isinstance(row['context'], list) else int(row['context']))
                 r = row['rating']
                 js = []
                 neg_set.append([u, i, c, r, js]) if context else neg_set.append([u, i, r, js])
@@ -71,12 +71,20 @@ class Sampler(object):
                 if self.reindex:
                     adj_mx[int(row['item']), int(row['user'])] = 1.0
                     if context:
-                        # for idx in range(len(row[2:]) -2):  #subtract rating and timestamp
-                        adj_mx[int(row['user']), int(row['context'])] = 1.0
-                        adj_mx[int(row['item']), int(row['context'])] = 1.0
+                        if 'array_context_flag' in sampled_df.columns:
+                            for c in row['context']:
+                                adj_mx[int(row['user']), c] = 1.0
+                                adj_mx[int(row['item']), c] = 1.0
 
-                        adj_mx[int(row['context']), int(row['user'])] = 1.0
-                        adj_mx[int(row['context']), int(row['item'])] = 1.0
+                                adj_mx[c, int(row['user'])] = 1.0
+                                adj_mx[c, int(row['item'])] = 1.0
+                        else:
+                            # for idx in range(len(row[2:]) -2):  #subtract rating and timestamp
+                            adj_mx[int(row['user']), int(row['context'])] = 1.0
+                            adj_mx[int(row['item']), int(row['context'])] = 1.0
+
+                            adj_mx[int(row['context']), int(row['user'])] = 1.0
+                            adj_mx[int(row['context']), int(row['item'])] = 1.0
         else:
             adj_mx = pair_pos
             neg_sample_pool = list(range(user_num, item_num)) if self.reindex else list(range(item_num))
@@ -95,7 +103,10 @@ class Sampler(object):
             for _, row in tqdm(sampled_df.iterrows(), desc="Negative sampling...", total=len(sampled_df)):
                 u = int(row['user'])
                 i = int(row['item'])
-                c = None if not context else int(row['context'])
+                if 'array_context_flag' in sampled_df.columns:
+                    c = None if not context else row['context']
+                else:
+                    c = None if not context else int(row['context'])
                 r = row['rating']
 
                 js = []

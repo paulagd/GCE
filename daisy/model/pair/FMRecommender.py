@@ -86,13 +86,17 @@ class PairFM(nn.Module):
     def forward(self, u, i, j, context):
 
         if self.reindex:
-            # embed()
             if context is None:
                 embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
                 embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
             else:
-                embeddings_ui = self.embeddings(torch.stack((u, i, context), dim=1))
-                embeddings_uj = self.embeddings(torch.stack((u, j, context), dim=1))
+                if isinstance(context, list) and len(context) > 0:
+                    context = torch.stack(context, dim=1)
+                    embeddings_ui = self.embeddings(torch.cat((torch.stack((u, i), dim=1), context), dim=1))
+                    embeddings_uj = self.embeddings(torch.cat((torch.stack((u, j), dim=1), context), dim=1))
+                else:
+                    embeddings_ui = self.embeddings(torch.stack((u, i, context), dim=1))
+                    embeddings_uj = self.embeddings(torch.stack((u, j, context), dim=1))
                 
             # inner prod part
             pred_i = self.fm(embeddings_ui)

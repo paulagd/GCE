@@ -9,7 +9,7 @@ from datetime import datetime
 import torch
 import torch.utils.data as data
 from torch.utils.tensorboard import SummaryWriter
-
+import ast
 from daisy.utils.sampler import Sampler
 from daisy.utils.parser import parse_args
 from daisy.utils.splitter import split_test, split_validation, perform_evaluation
@@ -35,10 +35,16 @@ def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, sam
     for u in tqdm(test_ucands.keys(), disable=tune):
         # build a test MF dataset for certain user u to accelerate
         if context_flag:
+            # tmp = pd.DataFrame({
+            #     'user': u[0],
+            #     'item': test_ucands[u],
+            #     'context': [*u[1:]],
+            #     'rating': [0. for _ in test_ucands[u]],  # fake label, make nonsense
+            # })
             tmp = pd.DataFrame({
                 'user': [u[0] for _ in test_ucands[u]],
                 'item': test_ucands[u],
-                'context': [u[1] for _ in test_ucands[u]],
+                'context': [[*u[1:]] for _ in test_ucands[u]],
                 'rating': [0. for _ in test_ucands[u]],  # fake label, make nonsense
             })
         else:
@@ -89,9 +95,6 @@ if __name__ == '__main__':
     else:
         writer = SummaryWriter(log_dir=f'logs/nologs/logs/')
 
-    if args.dataset == 'epinions':
-        args.lr = 0.001
-
     # p = multiprocessing.Pool(args.num_workers)
     # FIX SEED AND SELECT DEVICE
     seed = 1234
@@ -119,9 +122,16 @@ if __name__ == '__main__':
                                                         context_as_userfeat=args.context_as_userfeat)
     if args.side_information and not args.dataset == 'ml-100k':
         if args.dataset in ['lastfm', 'drugs']:
-            aux_si = df.iloc[:, :-2].copy() # take all columns unless user, rating and timestamp
             if args.context_as_userfeat:
+                aux_si = df.iloc[:, :-2].copy()  # take all columns unless user, rating and timestamp
                 args.context = False
+            else:
+                if 'context' in df.columns:
+                    aux_si = df.iloc[:, :-3].copy()  # take all columns unless user, rating and timestamp
+                    aux_si.drop(columns=['context'], inplace=True)
+                else:
+                    aux_si = df.iloc[:, :-2].copy()  # take all columns unless user, rating and timestamp
+
         elif (np.unique(df['timestamp']) == [1])[0]:
             # BIPARTED GRAPH
             args.context = False
@@ -130,17 +140,33 @@ if __name__ == '__main__':
         else:
             aux_si = df[['item', 'side_info']].copy()
             aux_si = aux_si.drop_duplicates('item')
+    else:
+        if 'user-feat' in df.columns:
+            df.drop(columns=['user-feat'], inplace=True)
+        print('NO SIDE EFFECT')
     if args.reindex:
-        df = df.astype(np.int64)
-        df['item'] = df['item'] + users
-        if args.context:
-            df = add_last_clicked_item_context(df, args.dataset, args.random_context)
-            # add context as independent nodes
-            if not args.uii:
-                df['context'] = df['context'] + items
-            # check last number is positive
-            # np.max(df.to_numpy(), axis=0)
-            assert df['item'].tail().values[-1] > 0
+        if 'array_context_flag' in df.columns:  # isinstance(row['context'], list)
+            if args.context:
+                assert (np.unique(df['timestamp']) == 1)[0] == True
+                df['user'] = df['user'].astype(np.int64)
+                df['item'] = df['item'].astype(np.int64)
+                df['item'] = df['item'] + users
+                df['context'] = df['context'].apply(lambda x: ast.literal_eval(x))
+                df['context'] = df['context'].apply(lambda x: [protein + (users+items) for protein in x])
+                #and type(ast.literal_eval(df['context'][0])) is list:
+                # timestamp is forced
+        else:
+            df = df.astype(np.int64)
+            df['item'] = df['item'] + users
+            if args.context:
+                df = add_last_clicked_item_context(df, args.dataset, args.random_context)
+                # add context as independent nodes
+                if not args.uii:
+                    df['context'] = df['context'] + items
+                # TODO: else: df['context'] = df['context'].apply(lambda x: [c] for c in x)
+                # check last number is positive
+                # np.max(df.to_numpy(), axis=0)
+                assert df['item'].tail().values[-1] > 0
     ''' SPLIT DATA '''
     train_set, test_set = split_test(df, args.test_method, args.test_size)
     train_set, val_set, _ = split_validation(train_set, val_method=args.test_method, list_output=False)
@@ -149,7 +175,17 @@ if __name__ == '__main__':
     # train_set = pd.read_csv(f'./experiment_data/train_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     # test_set = pd.read_csv(f'./experiment_data/test_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     df = pd.concat([train_set, test_set], ignore_index=True)
-    dims = np.max(df.to_numpy().astype(int), axis=0) + 1
+    if 'array_context_flag' in df.columns:
+        # type(df.to_numpy()[0][2]) == list
+        import itertools
+        prot_list = list(itertools.chain(df['context'].values))
+        flattened_proteins = [val for sublist in prot_list for val in sublist]
+
+        dims = np.max(df[['user', 'item']].to_numpy().astype(int), axis=0) + 1
+        dims = np.append(dims, [np.max(flattened_proteins)+1])
+
+    else:
+        dims = np.max(df.to_numpy().astype(int), axis=0) + 1
     if args.dataset in ['yelp']:
         train_set['timestamp'] = pd.to_datetime(train_set['timestamp'], unit='ns')
         test_set['timestamp'] = pd.to_datetime(test_set['timestamp'], unit='ns')
@@ -215,7 +251,7 @@ if __name__ == '__main__':
                     cat_mx.append(X_sinfo)
                 X_sinfo = torch.cat(cat_mx, -1)
                 X = torch.cat((X, X_sinfo), -1)
-        #embed()
+        # embed()
         # We retrieve the graph's edges and send both them and graph to device in the next two lines
         edge_idx, edge_attr = from_scipy_sparse_matrix(adj_mx)
         # TODO: should I pow the matrix here?

@@ -6,6 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 from collections import defaultdict
 from hyperopt import hp, tpe, fmin, Trials, space_eval
+import ast
 
 import torch
 import torch.utils.data as data
@@ -181,28 +182,49 @@ if __name__ == '__main__':
                                                         side_info=args.side_information, context_type=args.context_type,
                                                         context_as_userfeat=args.context_as_userfeat)
     if args.side_information and not args.dataset == 'ml-100k':
-        if args.dataset in ['lastfm']:
-            aux_si = df.iloc[:, :-2].copy() # take all columns unless user, rating and timestamp
+        if args.dataset in ['lastfm', 'drugs']:
             if args.context_as_userfeat:
+                aux_si = df.iloc[:, :-2].copy()  # take all columns unless user, rating and timestamp
                 args.context = False
+            else:
+                if 'context' in df.columns:
+                    aux_si = df.iloc[:, :-3].copy()  # take all columns unless user, rating and timestamp
+                    aux_si.drop(columns=['context'], inplace=True)
+                else:
+                    aux_si = df.iloc[:, :-2].copy()  # take all columns unless user, rating and timestamp
         elif (np.unique(df['timestamp']) == [1])[0]:
             # BIPARTED GRAPH
             args.context = False
             print('BI-PARTED GRAPH WITH X')
-            aux_si = df.iloc[:, :-2].copy() # take all columns unless user, rating and timestamp
+            aux_si = df.iloc[:, :-2].copy()  # take all columns unless user, rating and timestamp
         else:
             aux_si = df[['item', 'side_info']].copy()
             aux_si = aux_si.drop_duplicates('item')
+    else:
+        if 'user-feat' in df.columns:
+            df.drop(columns=['user-feat'], inplace=True)
+        print('NO SIDE EFFECT')
         
     if args.reindex:
-        df = df.astype(np.int64)
-        df['item'] = df['item'] + users
-        if args.context:
-            df = add_last_clicked_item_context(df, args.dataset)
-            if not args.uii:
-                df['context'] = df['context'] + items
-            # check last number is positive
-            assert df['item'].tail().values[-1] > 0
+        if 'array_context_flag' in df.columns:  # isinstance(row['context'], list)
+            if args.context:
+                assert (np.unique(df['timestamp']) == 1)[0] == True
+                df['user'] = df['user'].astype(np.int64)
+                df['item'] = df['item'].astype(np.int64)
+                df['item'] = df['item'] + users
+                df['context'] = df['context'].apply(lambda x: ast.literal_eval(x))
+                df['context'] = df['context'].apply(lambda x: [protein + (users+items) for protein in x])
+                #and type(ast.literal_eval(df['context'][0])) is list:
+                # timestamp is forced
+        else:
+            df = df.astype(np.int64)
+            df['item'] = df['item'] + users
+            if args.context:
+                df = add_last_clicked_item_context(df, args.dataset)
+                if not args.uii:
+                    df['context'] = df['context'] + items
+                # check last number is positive
+                assert df['item'].tail().values[-1] > 0
 
     ''' SPLIT DATA '''
     train_set, test_set = split_test(df, args.test_method, args.test_size)
@@ -212,7 +234,17 @@ if __name__ == '__main__':
     # train_set = pd.read_csv(f'./experiment_data/train_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     # test_set = pd.read_csv(f'./experiment_data/test_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     df = pd.concat([train_set, test_set], ignore_index=True)
-    dims = np.max(df.to_numpy().astype(int), axis=0) + 1
+    if 'array_context_flag' in df.columns:
+        # type(df.to_numpy()[0][2]) == list
+        import itertools
+        prot_list = list(itertools.chain(df['context'].values))
+        flattened_proteins = [val for sublist in prot_list for val in sublist]
+
+        dims = np.max(df[['user', 'item']].to_numpy().astype(int), axis=0) + 1
+        dims = np.append(dims, [np.max(flattened_proteins)+1])
+
+    else:
+        dims = np.max(df.to_numpy().astype(int), axis=0) + 1
     if args.dataset in ['yelp']:
         train_set['timestamp'] = pd.to_datetime(train_set['timestamp'], unit='ns')
         test_set['timestamp'] = pd.to_datetime(test_set['timestamp'], unit='ns')
