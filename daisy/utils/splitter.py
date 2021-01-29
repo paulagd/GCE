@@ -2,13 +2,13 @@ import numpy as np
 import pandas as pd
 import time, torch
 from tqdm import tqdm
-from daisy.utils.metrics import precision_at_k, recall_at_k, map_at_k, hr_at_k, ndcg_at_k, mrr_at_k
+from daisy.utils.metrics import precision_at_k, recall_at_k, off_policy_at_k, hr_at_k, ndcg_at_k, mrr_at_k
 from sklearn.model_selection import KFold, train_test_split, GroupShuffleSplit
 from IPython import embed
 
 
 def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time=None, writer=None, epoch=None,
-                       minutes_train=None, seconds_train=None, tune=False):
+                       minutes_train=None, seconds_train=None, tune=False, populary_dict=None):
     model.eval()
     preds = {}
     # for u_idx, tmp_loader in enumerate(loaders):
@@ -29,8 +29,12 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         preds[u] = top_n
 
     # convert rank list to binary-interaction
+    rank_list_items = preds.copy()
     for u in preds.keys():
         preds[u] = [1 if i in test_ur[u] else 0 for i in preds[u]]
+
+    for u in rank_list_items.keys():
+        rank_list_items[u] = [i if i in test_ur[u] else 0 for i in rank_list_items[u]]
 
     # res = pd.DataFrame({'metric@K': ['pre', 'rec', 'hr', 'map', 'mrr', 'ndcg']})
     res = pd.DataFrame({'metric@K': ['hr', 'ndcg']})
@@ -40,17 +44,23 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
             continue
         tmp_preds = preds.copy()
         tmp_preds = {key: rank_list[:k] for key, rank_list in tmp_preds.items()}
-
+        rank_list_items = {key: rank_list[:k] for key, rank_list in rank_list_items.items()}
         # pre_k = np.mean([precision_at_k(r, k) for r in tmp_preds.values()])
         # rec_k = recall_at_k(tmp_preds, test_ur, k)
         hr_k = hr_at_k(tmp_preds, test_ur)
         # map_k = map_at_k(tmp_preds.values())
         # mrr_k = mrr_at_k(tmp_preds, k)
+        # if populary_dict and not tune:
+        #     embed()
+        #     off_policy_k, off_policy_k_norm = off_policy_at_k(populary_dict, rank_list_items)
+        # else:
+        #     populary_dict = np.nan
         ndcg_k = np.mean([ndcg_at_k(r, k) for r in tmp_preds.values()])
 
         if (writer and not epoch is None) and not tune:
             writer.add_scalar(f'metrics/HR_@{k}', hr_k, epoch+1)
             writer.add_scalar(f'metrics/NDCG_@{k}', ndcg_k, epoch+1)
+            # writer.add_scalar(f'metrics/Discounted_HR@{k}', off_policy_k, epoch+1)
             # print(f'HR@{k}: {hr_k:.4f}  |  NDCG@{k}: {ndcg_k:.4f}')
 
         # res[k] = np.array([pre_k, rec_k, hr_k, map_k, mrr_k, ndcg_k])
@@ -68,6 +78,7 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
             # print(f'MAP@{k}: {map_k:.4f}')
             # print(f'MRR@{k}: {mrr_k:.4f}')
             print(f'NDCG@{k}: {ndcg_k:.4f}')
+            # print(f'Discounted__HR@{k}: {off_policy_k}')
 
     if not (writer and not epoch is None) and not tune:
         print(f'TRAINING ELAPSED TIME: {minutes_train:.2f} min, {seconds_train:.4f}seconds')

@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy.io as sio
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 from daisy.utils.data import incorporate_in_ml100k
 from scipy.sparse import csr_matrix
 
@@ -30,7 +31,7 @@ def cut_down_data_half(df):
     return cut_df
 
 
-def filter_users_and_items(df, num_users=None, freq_items=None, keys=['user', 'item']):
+def filter_users_and_items(df, num_users=None, freq_items=None, top_items=None, keys=['user', 'item']):
     '''
         Reduces the dataframe to a number of users = num_users and it filters the items by frequency
     '''
@@ -39,8 +40,9 @@ def filter_users_and_items(df, num_users=None, freq_items=None, keys=['user', 'i
         df = df[df[keys[0]].isin(np.unique(df[keys[0]])[:num_users])]
 
     # Get top5k books
-    top5k_books = df[keys[1]].value_counts()[:5000].index
-    df = df[df[keys[1]].isin(top5k_books)]
+    if top_items is not None:
+        top5k_books = df[keys[1]].value_counts()[:top_items].index
+        df = df[df[keys[1]].isin(top5k_books)]
 
     if freq_items is not None:
         frequent_items = df['item'].value_counts()[df['item'].value_counts() > freq_items].index
@@ -49,8 +51,48 @@ def filter_users_and_items(df, num_users=None, freq_items=None, keys=['user', 'i
     return df
 
 
+def run_statistics(df, src):
+
+    path = f'histograms/{src}'
+    bins = 30
+    os.makedirs(path, exist_ok=True)
+    f = open(os.path.join(path, "information.txt"), "w+")
+    f.write("Information:\n")
+    f.write("==========================\n")
+    f.write(f"Interactions: {len(df)}\n")
+    f.write(f"#users = {df['user'].nunique()}\n")
+    f.write(f"#items = {df['item'].nunique()}\n")
+    f.close()
+
+    for key in ['user', 'item']:
+        # OPCIÓ A: HISTOGRAMA
+        a = pd.DataFrame(df.groupby([key])[key].count())
+        a.columns = ['value_counts']
+        a.reset_index(level=[0], inplace=True)
+        dims = (15, 5)
+        fig, ax = plt.subplots(figsize=dims)
+        a["value_counts"].hist(bins=200)
+        # fig.savefig('hist.jpg')
+        fig.savefig(os.path.join(path, f'{src}_histogram_{key}_bins={bins}.png'))
+        fig.clf()
+
+        # OPCIÓ : BARPLOT
+        # a = pd.DataFrame(df_year.groupby(['user'])['user'].count())
+        # a.columns = ['value_counts']
+        # a.reset_index(level=[0], inplace=True)
+        # dims = (15, 5)
+        # fig, ax = plt.subplots(figsize=dims)
+        # sns.set_style("darkgrid")
+        # sns.barplot(ax=ax, x="user", y="value_counts", data=a, palette="Blues_d")
+        # ax.set(xlabel="User", ylabel="Value Counts")
+        # plt.xticks(rotation=45)
+        # plt.show()
+        # fig.savefig('data.jpg')
+
+
 def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False,
-              gce_flag=False, cut_down_data=False, side_info=False, context_type='', context_as_userfeat=False):
+              gce_flag=False, cut_down_data=False, side_info=False, context_type='', context_as_userfeat=False,
+              flag_run_statistics=False):
     """
     Method of loading certain raw data
     Parameters
@@ -132,7 +174,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             df = pd.read_csv(f'./data/{src}/preprocessed_books_complete_timestamp.csv', sep=',', engine='python')
         del df['date']
         # reduce users to 3000 and filter items by clicked_frequency > 10
-        df = filter_users_and_items(df, num_users=4000, freq_items=50, keys=['user', 'item'])  # 35422 books
+        df = filter_users_and_items(df, num_users=4000, freq_items=50, top_items=5000, keys=['user', 'item'])  # 35422 books
 
     elif src == 'music':
         df = pd.read_csv(f'./data/{src}-context/train.csv')
@@ -269,30 +311,49 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df = filter_users_and_items(df, num_users=1000, freq_items=20, keys=['user', 'item'])
             df.to_csv(f'{file_path}/dataset.csv', sep=',', index=False)
-
-            # TODO: TAKE LAST DAY:
-            year = 2009
-            df_year = pd.DataFrame([])
-            for user in range(np.max(df['user'])):
-                u = df[df['user'] == user].sort_values(by='timestamp', ascending=False)
-                u['timestamp'] = pd.to_datetime(u['timestamp'], unit='s')
-                include = u[u['timestamp'].dt.year == year]
-                df_year = df_year.append(include)
-            df_year.to_csv(f'{file_path}/dataset_{year}.csv', sep=',', index=False)
-            '''
-            year --> 2009
-            user            774
-            item           4985
-            item-feat       794
-            rating            1
-            timestamp    412008
-            '''
-
         else:
-            print('LOADED POST-PROCESSED DB')
-            df = pd.read_csv(f'{file_path}/dataset_2009.csv', sep=',')
+            df = pd.read_csv(f'{file_path}/dataset.csv', sep=',')
+            selected_users = df['user'].value_counts()[df['user'].value_counts() > 20].index
+            df = df[df['user'].isin(selected_users)]
+            year = 2009
+            if not os.path.exists(f'{file_path}/dataset_{year}.csv'):
+                # TODO: TAKE SPECIFIC YEAR
+                df_year = pd.DataFrame([])
+                for user in range(np.max(df['user'])):
+                    u = df[df['user'] == user].sort_values(by='timestamp', ascending=False)
+                    try:
+                        u['timestamp'] = pd.to_datetime(u['timestamp'], unit='ns')
+                    except:
+                        u['timestamp'] = pd.to_datetime(u['timestamp'], unit='s')
+
+                    include = u[u['timestamp'].dt.year == year]
+                    df_year = df_year.append(include)
+
+                selected_items = df_year['item'].value_counts()[df_year['item'].value_counts() > 20].index
+                df_year = df_year[df_year['item'].isin(selected_items)]
+
+                selected_users = df_year['user'].value_counts()[df_year['user'].value_counts() > 20].index
+                df_year = df_year[df_year['user'].isin(selected_users)]
+                df_year.to_csv(f'{file_path}/dataset_{year}.csv', sep=',', index=False)
+                df = df_year.copy()
+                '''
+                year --> 2009
+                user            774
+                item           4985
+                item-feat       794
+                rating            1
+                timestamp    412008
+                '''
+
+            else:
+                print('LOADED POST-PROCESSED DB')
+                df = pd.read_csv(f'{file_path}/dataset_2009.csv', sep=',')
             df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
             df['timestamp'] = df.timestamp.astype('int64') // 10 ** 9
+
+            selected_users = df['user'].value_counts()[df['user'].value_counts() < 9000].index
+            df = df[df['user'].isin(selected_users)]
+            df = df[['user', 'item', 'item-feat', 'rating', 'timestamp']]
 
     elif src == 'bx':
         df = pd.read_csv(f'./data/{src}/BX-Book-Ratings.csv', delimiter=";", encoding="latin1")
@@ -449,9 +510,9 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
     user_num = df['user'].nunique()
     item_num = df['item'].nunique()
-
-
-
+    if flag_run_statistics:
+        run_statistics(df, src)
+        exit()
     # ####################################################################
     # if side_info and src == 'ml-100k':
     #     si = pd.read_csv(f'./data/{src}/side-information.csv', index_col=0)

@@ -1,4 +1,5 @@
 import numpy as np
+from IPython import embed
 
 
 def precision_at_k(r, k):
@@ -48,6 +49,31 @@ def recall_at_k(rs, test_ur, k):
     rec = np.mean(res)
 
     return rec
+
+
+def off_policy_at_k(popularity_items, rs):
+    """
+    Off policy (HR discounted) calculation method
+    Parameters
+    ----------
+    rs : Dict, {user : rank items} for test set
+    k : int, topK number
+
+    Returns
+    -------
+    off_policy : float, HR discounted value
+    """
+    uhr = 0
+    # items = []
+    off_policy = 0
+    for r in rs.values():
+        if np.sum(r) != 0:
+            # items.append(np.sum(r))
+            uhr += 1
+            off_policy += 1*popularity_items[np.sum(r)]
+
+    hr = uhr / len(rs)
+    return off_policy/len(rs)
 
 
 def mrr_at_k(rs, k):
@@ -143,6 +169,7 @@ def ndcg_at_k(r, k):
     -------
     ndcg : float, NDCG value
     """
+
     assert k >= 1
     idcg = dcg_at_k(sorted(r, reverse=True), k)
     if not idcg:

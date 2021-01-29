@@ -43,6 +43,8 @@ def opt_func(space):
         # TODO: I THINK ITS LIKE THIS! UNCOMMENT
         print('GCE GOOD WAY')
         max_dim = X.shape[1]
+        # TODO: I THINK ITS LIKE THIS! COMMENT
+        # X = torch.transpose(X, 0, 1)
 
     if args.algo_name == 'mf':
         from daisy.model.pair.MFRecommender import PairMF
@@ -107,6 +109,7 @@ def opt_func(space):
         )
     elif args.algo_name == 'ncf':
         layers = [len(dims[:-2]) * 32, 32, 16, 8] if not args.context else [len(dims[:-2]) * 32, 32, 16, 8]
+        args.factors = layers[1]
         from daisy.model.pair.NCFRecommender import PairNCF
         max_dim = layers[0]
         model = PairNCF(
@@ -158,7 +161,10 @@ def opt_func(space):
     )
     loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num, sampler,
                                                context_flag=args.context, tune=args.tune)
-    score = train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, tune=args.tune, f=f)
+    try:
+        score = train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, tune=args.tune, f=f)
+    except:
+        score = -1
     return score
 
 

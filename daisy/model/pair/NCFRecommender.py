@@ -54,7 +54,11 @@ class PairNCF(nn.Module):
                 embeddings = self.embeddings(torch.stack((u, i), dim=1))
                 #torch.Size([256, 128])
             else:
-                embeddings = self.embeddings(torch.stack((u, i, c), dim=1))
+                if isinstance(c, list) and len(c) > 0:
+                    context = torch.stack(c, dim=1)
+                    embeddings = self.embeddings(torch.cat((torch.stack((u, i), dim=1), context), dim=1))
+                else:
+                    embeddings = self.embeddings(torch.stack((u, i, c), dim=1))
             x = embeddings.view(embeddings.shape[0], -1)
 
         else:

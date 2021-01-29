@@ -87,9 +87,11 @@ if __name__ == '__main__':
             loss = 'BPR' if args.loss_type == "BPR" else "CL"
             sampling = 'neg_sampling_each_epoch' if args.neg_sampling_each_epoch else ""
             stopping = 'not_early_stopping' if args.not_early_stopping else ""
-            writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/'
-            f'logs_{rankall}_{loss}_{context_type}_{mh}_{INIT}{random_context}_lr={args.lr}_DO={args.dropout}_{args.algo_name}'
-            f'_bs={args.batch_size}_{string}_{args.epochs}epochs_{sampling}_{stopping}_{date}/')
+
+            total_info = f'{args.algo_name}_{rankall}_lr={args.lr}_DO={args.dropout}_bs={args.batch_size}_{string}' \
+                f'_{args.epochs}epochs_{sampling}_{stopping}'
+            writer = SummaryWriter(log_dir=f'logs/{args.dataset}/{context_folder}/logs_{total_info}_{date}/')
+
         else:
             writer = SummaryWriter(log_dir=f'logs/{args.dataset}/logs_{args.logsname}_{date}/')
     else:
@@ -119,7 +121,8 @@ if __name__ == '__main__':
     df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context,
                                                         gce_flag=args.gce, cut_down_data=args.cut_down_data,
                                                         side_info=args.side_information, context_type=args.context_type,
-                                                        context_as_userfeat=args.context_as_userfeat)
+                                                        context_as_userfeat=args.context_as_userfeat,
+                                                        flag_run_statistics=args.statistics)
     if args.side_information and not args.dataset == 'ml-100k':
         if args.dataset in ['lastfm', 'drugs']:
             if args.context_as_userfeat:
@@ -529,7 +532,8 @@ if __name__ == '__main__':
     if args.problem_type == 'pair':
         # model.fit(train_loader)
         from daisy.model.pair.train import train
-        train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, writer=writer)
+        train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, writer=writer,
+              desc=total_info)
     elif args.problem_type == 'point':
         from daisy.model.point.train import train
         train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, writer=writer)

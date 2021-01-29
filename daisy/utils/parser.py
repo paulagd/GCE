@@ -11,6 +11,7 @@ def parse_args():
                         help='tuning epochs')
     parser.add_argument("--logs", action="store_false", default=True, help="Enables logs")
     parser.add_argument("--rankall", action="store_true", default=False, help="Enables rank between all items")
+    parser.add_argument("--statistics", action="store_true", default=False, help="Enables statistics dataset")
     parser.add_argument("--context_as_userfeat", action="store_true", default=False,
                         help="Enables using context as user multihot features")
     parser.add_argument("--save_initial_weights", action="store_true", default=False, help="Enables saving epoch 0 weights.")

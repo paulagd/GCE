@@ -131,7 +131,11 @@ class PairDeepFM(nn.Module):
             if context is None:
                 embeddings = self.embeddings(torch.stack((user, item), dim=1))
             else:
-                embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
+                if isinstance(context, list) and len(context) > 0:
+                    context = torch.stack(context, dim=1)
+                    embeddings = self.embeddings(torch.cat((torch.stack((user, item), dim=1), context), dim=1))
+                else:
+                    embeddings = self.embeddings(torch.stack((user, item, context), dim=1))
             fm = embeddings.prod(dim=1)  # shape [256, 32]
         else:
             embed_user = self.embed_user(user)

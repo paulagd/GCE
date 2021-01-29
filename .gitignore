@@ -1,3 +1,4 @@
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -7,6 +8,7 @@ logs
 tune_logs
 /outputs/*
 results
+histograms/*
 data
 /outputs_LASTFM/*
 /outputs_ML1M/*

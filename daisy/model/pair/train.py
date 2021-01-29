@@ -12,7 +12,7 @@ from hyperopt.progress import tqdm_progress_callback, no_progress_callback
 
 
 def train(args, model, train_loader, device, context_flag, loaders, candidates, val_ur,  writer=None, tune=False,
-          f=None):
+          f=None, desc=None):
     cudnn.benchmark = True
     model.to(device)
     if args.optimizer == 'adagrad': #args.optimizer == '':
@@ -36,8 +36,10 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
 
     print(f'RUN FOR {args.epochs} EPOCHS')
     # IDEA: RANDOM EVALUATION
+    # populary_dict = train_loader.dataset.set['item'].value_counts(normalize=True).to_dict()
+
     res, writer, _ = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=0,
-                                        tune=tune)
+                                        tune=tune, populary_dict=None)
     # best_hr = res[10][0]
     best_ndcg = res[10][1]
     early_stopping_counter = 0
@@ -47,7 +49,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
         print("IT WILL NEVER DO EARLY STOPPING!")
     fnl_metric = []
     for epoch in range(1, args.epochs + 1):
-        if stop and not args.not_early_stopping:
+        if stop:
             print(f'PRINT BEST VALIDATION RESULTS (ndcg optimization) on epoch {best_epoch}:')
             # print(best_res)
             break
@@ -110,7 +112,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
                 writer.add_scalar('loss/train', loss.item(), epoch * len(train_loader) + i)
 
         res, writer, tmp_pred_10 = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer,
-                                                      epoch=epoch, tune=tune)
+                                                      epoch=epoch, tune=tune, populary_dict=None)
 
         if args.save_initial_weights and epoch == 1:
             dirname = f'weights/{args.dataset}'
@@ -125,10 +127,20 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
         if res[10][1] > best_ndcg:
             best_ndcg = res[10][1]
             best_hr = res[10][0]
+            best_ndcg_20 = res[20][1]
+            best_hr_20 = res[20][0]
+            # best_disc_hr = res[10][2]
             best_res = res
             best_epoch = epoch
             early_stopping_counter = 0
             stop = False
+            filename_weights = f'weights/{args.dataset}/best_weights/{args.algo_name}'
+            os.makedirs(filename_weights, exist_ok=True)
+            # model.embeddings.weight
+            best_checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            }
         else:
             early_stopping_counter += 1
             if early_stopping_counter == 10 and not args.not_early_stopping:
@@ -146,6 +158,8 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
         print('=' * 20, 'Metrics for All Validation', '=' * 20)
         print(f'HR@10: {fnl_metric[0]:.4f}')
         print(f'NDCG@10: {fnl_metric[1]:.4f}')
+        # print(f'Discounted_HR@10: {fnl_metric[2]:.4f}')
+
         # record all tuning result and settings
         fnl_metric = [f'{mt:.4f}' for mt in fnl_metric]
         line = ','.join(fnl_metric) + f',{best_epoch},{args.num_ng},{args.factors},{args.dropout},{args.lr},{args.batch_size},' \
@@ -158,4 +172,10 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
         print(f'++++++++++ BEST METRICS (epoch {best_epoch}) +++++++++')
         print(f'HR@10: {best_hr:.4f}')
         print(f'NDCG@10: {best_ndcg:.4f}')
+        print(f'HR@20: {best_hr_20:.4f}')
+        print(f'NDCG@20: {best_ndcg_20:.4f}')
+        # print(f'Discounted_HR@10: {best_disc_hr:.4f}')
+        name = f'best_epoch={best_epoch}_{desc}.pkl'
+        torch.save(best_checkpoint, os.path.join(filename_weights, name))
+
 
