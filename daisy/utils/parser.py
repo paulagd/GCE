@@ -5,10 +5,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description='test recommender')
     # common settings
     # python main.py --algo_name mf --dataset ml-100k  --epochs 10 --gce
-    parser.add_argument('--tune_epochs',
-                        type=int,
-                        default=100,
-                        help='tuning epochs')
+    parser.add_argument('--seed', type=int, default=1234, help='tuning epochs')
+    parser.add_argument('--tune_epochs', type=int, default=100, help='tuning epochs')
+    parser.add_argument('--remove_top_users', type=int, default=0, help='% of top users to remove')
+    parser.add_argument('--remove_on', type=str, default='item', help='apply remove top_users on item/user')
     parser.add_argument("--logs", action="store_false", default=True, help="Enables logs")
     parser.add_argument("--rankall", action="store_true", default=False, help="Enables rank between all items")
     parser.add_argument("--statistics", action="store_true", default=False, help="Enables statistics dataset")

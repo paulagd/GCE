@@ -67,34 +67,37 @@ class PairMF(nn.Module):
                 nn.init.normal_(self.embed_user.weight, std=0.01)
                 nn.init.normal_(self.embed_item.weight, std=0.01)
 
-    def forward(self, u, i, j, context):
+    def forward(self, u, i, j, c, inference=False):
+        pred_i = self._out(u, i, c)
+        if not inference:
+            pred_j = self._out(u, j, c)
+        else:
+            pred_j = pred_i
+
+        return pred_i, pred_j
+    
+    def _out(self, u, i, context):
 
         if self.reindex:
             # embed()
             if context is None:
                 embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
-                embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
             else:
                 if isinstance(context, list) and len(context) > 0:
                     context = torch.stack(context, dim=1)
                     embeddings_ui = self.embeddings(torch.cat((torch.stack((u, i), dim=1), context), dim=1))
-                    embeddings_uj = self.embeddings(torch.cat((torch.stack((u, j), dim=1), context), dim=1))
                 else:
                     embeddings_ui = self.embeddings(torch.stack((u, i, context), dim=1))
-                    embeddings_uj = self.embeddings(torch.stack((u, j, context), dim=1))
 
             # ix = torch.bmm(embeddings[:, :1, :], embeddings[:, 1:, :].permute(0, 2, 1))
             pred_i = embeddings_ui.prod(dim=1).sum(dim=1)
-            pred_j = embeddings_uj.prod(dim=1).sum(dim=1)
         else:
             user = self.embed_user(u)
             item_i = self.embed_item(i)
-            item_j = self.embed_item(j)
 
             pred_i = (user * item_i).sum(dim=-1)
-            pred_j = (user * item_j).sum(dim=-1)
 
-        return pred_i, pred_j
+        return pred_i
 
     def predict(self, u, i, c):
         pred_i, _ = self.forward(u, i, i, c)

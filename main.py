@@ -99,12 +99,12 @@ if __name__ == '__main__':
 
     # p = multiprocessing.Pool(args.num_workers)
     # FIX SEED AND SELECT DEVICE
-    seed = 1234
+    seed = args.seed
     args.lr = float(args.lr)
     args.batch_size = int(args.batch_size)
     args.dropout = float(args.dropout)
     
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and args.remove_top_users == 0:
         torch.cuda.manual_seed_all(seed)
         device = "cuda"
     else:
@@ -120,6 +120,7 @@ if __name__ == '__main__':
     ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
     df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context,
                                                         gce_flag=args.gce, cut_down_data=args.cut_down_data,
+                                                        remove_top_users=args.remove_top_users, remove_on=args.remove_on,
                                                         side_info=args.side_information, context_type=args.context_type,
                                                         context_as_userfeat=args.context_as_userfeat,
                                                         flag_run_statistics=args.statistics)
@@ -182,16 +183,17 @@ if __name__ == '__main__':
         # type(df.to_numpy()[0][2]) == list
         import itertools
         prot_list = list(itertools.chain(df['context'].values))
+        # lenghts = [len(np.unique(seq)) for seq in prot_list]
+        # context_num = int(np.max(lenghts))
+        context_num = 1
+
         flattened_proteins = [val for sublist in prot_list for val in sublist]
 
         dims = np.max(df[['user', 'item']].to_numpy().astype(int), axis=0) + 1
         dims = np.append(dims, [np.max(flattened_proteins)+1])
-
     else:
         dims = np.max(df.to_numpy().astype(int), axis=0) + 1
-    if args.dataset in ['yelp']:
-        train_set['timestamp'] = pd.to_datetime(train_set['timestamp'], unit='ns')
-        test_set['timestamp'] = pd.to_datetime(test_set['timestamp'], unit='ns')
+        context_num = int(len(dims) - 4)
 
     ''' GET GROUND-TRUTH AND CANDIDATES '''
     # get ground truth
@@ -312,26 +314,6 @@ if __name__ == '__main__':
                 gpuid=args.gpu,
                 dropout=args.dropout
             )
-        elif args.algo_name == 'neumf':
-            from daisy.model.point.NeuMFRecommender import PointNeuMF
-            model = PointNeuMF(
-                user_num, 
-                max_dim,
-                factors=args.factors,
-                num_layers=args.num_layers,
-                dropout=args.dropout,
-                optimizer=args.optimizer,
-                lr=args.lr,
-                epochs=args.epochs,
-                reg_1=args.reg_1,
-                reg_2=args.reg_2,
-                loss_type=args.loss_type,
-                GCE_flag=args.gce,
-                reindex=args.reindex,
-                # X=X if args.gce else None,
-                # A=edge_idx if args.gce else None,
-                gpuid=args.gpu,
-            )
         elif args.algo_name == 'nfm':
             from daisy.model.point.NFMRecommender import PointNFM
             model = PointNFM(
@@ -371,9 +353,6 @@ if __name__ == '__main__':
                 mf=args.mf,
                 dropout=args.dropout
             )
-        elif args.algo_name == 'ngcf':
-            from daisy.model.point.NGCF import NGCF
-            model = NGCF(user_num, max_dim, df)
         elif args.algo_name == 'deepfm':
             from daisy.model.point.DeepFMRecommender import PointDeepFM
             model = PointDeepFM(
@@ -436,21 +415,6 @@ if __name__ == '__main__':
                 gpuid=args.gpu,
                 dropout=args.dropout
             )
-        elif args.algo_name == 'neumf':
-            from daisy.model.pair.NeuMFRecommender import PairNeuMF
-            model = PairNeuMF(
-                user_num, 
-                max_dim,
-                factors=args.factors,
-                num_layers=args.num_layers,
-                dropout=args.dropout,
-                lr=args.lr,
-                epochs=args.epochs,
-                reg_1=args.reg_1,
-                reg_2=args.reg_2,
-                loss_type=args.loss_type,
-                gpuid=args.gpu
-            )
         elif args.algo_name == 'nfm':
             from daisy.model.pair.NFMRecommender import PairNFM
             model = PairNFM(
@@ -474,21 +438,22 @@ if __name__ == '__main__':
                 mf=args.mf
             )
         elif args.algo_name == 'ncf':
-            layers = [len(dims[:-2])*32, 32, 16, 8] if not args.context else [len(dims[:-2])*32, 32, 16, 8]
-            args.factors = layers[1]
+            # layers = [len(dims[:-2])*32, 32, 16, 8] if not args.context else [len(dims[:-2])*32, 32, 16, 8]
+            # args.factors = layers[1]
             from daisy.model.pair.NCFRecommender import PairNCF
             model = PairNCF(
                 user_num,
                 max_dim,
-                factors=args.factors,
-                layers=layers,
+                args.factors,
+                num_layers=3,
                 GCE_flag=args.gce,
                 reindex=args.reindex,
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
                 gpuid=args.gpu,
                 mf=args.mf,
-                dropout=args.dropout
+                dropout=args.dropout,
+                num_context=context_num
             )
         elif args.algo_name == 'deepfm':
             from daisy.model.pair.DeepFMRecommender import PairDeepFM
@@ -524,22 +489,41 @@ if __name__ == '__main__':
         shuffle=True,
         num_workers=args.num_workers
     )
-    loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num, sampler,
-                                               context_flag=args.context)
 
-    s_time = time.time()
     # TODO: refactor train
     if args.problem_type == 'pair':
-        # model.fit(train_loader)
-        from daisy.model.pair.train import train
-        train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, writer=writer,
-              desc=total_info)
+        if args.remove_top_users > 0:
+            # do inference
+            print('+'*80)
+            print('NO TRAINING -- JUST INFERENCE')
+            ''' INFERENCE '''
+            print('TEST_SET: Start Calculating Metrics......')
+            loaders_test, candidates_test = build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num,
+                                                                 sampler, context_flag=args.context)
+            s_time = time.time()
+            elapsed_time = time.time() - s_time
+
+            hours, rem = divmod(elapsed_time, 3600)
+            minutes, seconds = divmod(rem, 60)
+            _, _, _ = perform_evaluation(loaders_test, candidates_test, model, args, device, test_ur, s_time,
+                                         minutes_train=minutes, writer=None, seconds_train=seconds, desc=total_info)
+            exit()
+
+        else:
+            loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num, sampler,
+                                                       context_flag=args.context)
+            s_time = time.time()
+            from daisy.model.pair.train import train
+            train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, writer=writer,
+                  desc=total_info)
     elif args.problem_type == 'point':
+        loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num, sampler,
+                                                   context_flag=args.context)
         from daisy.model.point.train import train
         train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, writer=writer)
     else:
         raise ValueError()
-    # model.fit(train_loader)
+
     elapsed_time = time.time() - s_time
 
     hours, rem = divmod(elapsed_time, 3600)

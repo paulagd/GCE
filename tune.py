@@ -65,6 +65,7 @@ def opt_func(space):
             gpuid=args.gpu,
             dropout=args.dropout
         )
+
     elif args.algo_name == 'fm':
         from daisy.model.pair.FMRecommender import PairFM
 
@@ -108,22 +109,22 @@ def opt_func(space):
             mf=args.mf
         )
     elif args.algo_name == 'ncf':
-        layers = [len(dims[:-2]) * 32, 32, 16, 8] if not args.context else [len(dims[:-2]) * 32, 32, 16, 8]
-        args.factors = layers[1]
+        # layers = [len(dims[:-2]) * 32, 32, 16, 8] if not args.context else [len(dims[:-2]) * 32, 32, 16, 8]
+        # args.factors = layers[1]
         from daisy.model.pair.NCFRecommender import PairNCF
-        max_dim = layers[0]
         model = PairNCF(
             user_num,
             max_dim,
-            factors=args.factors,
-            layers=layers,
+            args.factors,
+            num_layers=3,
             GCE_flag=args.gce,
             reindex=args.reindex,
             X=X if args.gce else None,
             A=edge_idx if args.gce else None,
             gpuid=args.gpu,
             mf=args.mf,
-            dropout=args.dropout
+            dropout=args.dropout,
+            num_context=context_num
         )
     elif args.algo_name == 'deepfm':
         from daisy.model.pair.DeepFMRecommender import PairDeepFM
@@ -198,6 +199,7 @@ if __name__ == '__main__':
                     aux_si.drop(columns=['context'], inplace=True)
                 else:
                     aux_si = df.iloc[:, :-2].copy()  # take all columns unless user, rating and timestamp
+
         elif (np.unique(df['timestamp']) == [1])[0]:
             # BIPARTED GRAPH
             args.context = False
@@ -244,13 +246,16 @@ if __name__ == '__main__':
         # type(df.to_numpy()[0][2]) == list
         import itertools
         prot_list = list(itertools.chain(df['context'].values))
+        context_num = 1
+
         flattened_proteins = [val for sublist in prot_list for val in sublist]
 
         dims = np.max(df[['user', 'item']].to_numpy().astype(int), axis=0) + 1
-        dims = np.append(dims, [np.max(flattened_proteins)+1])
-
+        dims = np.append(dims, [np.max(flattened_proteins) + 1])
     else:
         dims = np.max(df.to_numpy().astype(int), axis=0) + 1
+        context_num = int(len(dims) - 4)
+        
     if args.dataset in ['yelp']:
         train_set['timestamp'] = pd.to_datetime(train_set['timestamp'], unit='ns')
         test_set['timestamp'] = pd.to_datetime(test_set['timestamp'], unit='ns')

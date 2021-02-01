@@ -1,14 +1,41 @@
 import numpy as np
 import pandas as pd
-import time, torch
+import time, torch, os
 from tqdm import tqdm
 from daisy.utils.metrics import precision_at_k, recall_at_k, off_policy_at_k, hr_at_k, ndcg_at_k, mrr_at_k
 from sklearn.model_selection import KFold, train_test_split, GroupShuffleSplit
 from IPython import embed
 
 
+def get_weight_file(args, all_files):
+    params = f'lr={args.lr}_DO={int(args.dropout)}'
+    params1 = f'bs={args.batch_size}'
+    match_file = [file for file in all_files if file.endswith('__not_early_stopping.pkl') and
+                  params in file and params1 in file]
+    assert len(match_file) > 0
+    return match_file[0]
+
+
 def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time=None, writer=None, epoch=None,
-                       minutes_train=None, seconds_train=None, tune=False, populary_dict=None):
+                       minutes_train=None, seconds_train=None, tune=False, populary_dict=None, desc=None):
+    if args.remove_top_users > 0 and not desc is None:
+        # LOAD WEIGHTS TO MODEL
+        filename_weights = f'weights/{args.dataset}/best_weights/{args.algo_name}'
+        all_files = os.listdir(filename_weights)
+        match_file = get_weight_file(args, all_files)
+        # todo: build str with  bs, do, lr and model
+        best_weight_path = os.path.join(filename_weights, match_file)
+        checkpoint = torch.load(best_weight_path)
+        # aux = 'best_epoch=6_mf_RANK_ALL_lr=0.0005_DO=0_bs=512_reindexed_UIC__100epochs__not_early_stopping.pkl'
+        # checkpoint = torch.load(os.path.join(filename_weights,aux))
+
+        model.load_state_dict(checkpoint["state_dict"])
+        # checkpoint["state_dict"]['embeddings.weight'] = checkpoint["state_dict"]['embeddings.weight']
+        # checkpoint["state_dict"]['embeddings.weight'] = checkpoint["state_dict"]['embeddings.weight']
+        # checkpoint["state_dict"]['embeddings.weight'] = checkpoint["state_dict"]['embeddings.weight']
+        model.to(device)
+        print('LOADED BEST MODEL')
+
     model.eval()
     preds = {}
     # for u_idx, tmp_loader in enumerate(loaders):

@@ -27,11 +27,11 @@ echo "Starting UIC EXPERIMENTS..."
 python tune.py --dataset $1 --algo_name $2 --not_early_stopping --gce --tune_epochs 50
 echo "DONE $2 TUNNING - GCE"
 
-
-echo "Starting tunning SINFO parameters experiments in dataset $1 ..."
-
-python tune.py --dataset $1 --algo_name $2 --not_early_stopping --gce --side_information --tune_epochs 50
-echo "DONE $2 TUNNING - GCE- SINFO - UIC "
+#
+#echo "Starting tunning SINFO parameters experiments in dataset $1 ..."
+#
+#python tune.py --dataset $1 --algo_name $2 --not_early_stopping --gce --side_information --tune_epochs 50
+#echo "DONE $2 TUNNING - GCE- SINFO - UIC "
 
 #echo "Starting Multi hop 2 -- GRAPH - UIC EXPERIMENTS..."
 

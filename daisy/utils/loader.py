@@ -92,7 +92,7 @@ def run_statistics(df, src):
 
 def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, level='ui', context=False,
               gce_flag=False, cut_down_data=False, side_info=False, context_type='', context_as_userfeat=False,
-              flag_run_statistics=False):
+              flag_run_statistics=False, remove_top_users=0, remove_on='item'):
     """
     Method of loading certain raw data
     Parameters
@@ -120,7 +120,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             df = cut_down_data_half(df)  # from 100k to 49.760 interactions
 
     elif src == 'drugs':
-        union = True
+        union = False
         if union == True:
             df = pd.read_csv(f'./data/{src}/train_data_contextUNION_sideeffect.csv', engine='python', index_col=0)
             df.drop(columns=['context'], inplace=True)
@@ -336,6 +336,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
                 df_year = df_year[df_year['user'].isin(selected_users)]
                 df_year.to_csv(f'{file_path}/dataset_{year}.csv', sep=',', index=False)
                 df = df_year.copy()
+
                 '''
                 year --> 2009
                 user            774
@@ -348,12 +349,14 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             else:
                 print('LOADED POST-PROCESSED DB')
                 df = pd.read_csv(f'{file_path}/dataset_2009.csv', sep=',')
+
             df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
             df['timestamp'] = df.timestamp.astype('int64') // 10 ** 9
 
             selected_users = df['user'].value_counts()[df['user'].value_counts() < 9000].index
             df = df[df['user'].isin(selected_users)]
             df = df[['user', 'item', 'item-feat', 'rating', 'timestamp']]
+            df = filter_users_and_items(df, num_users=1000, freq_items=20, top_items=5000, keys=['user', 'item'])  # 35422 books
 
     elif src == 'bx':
         df = pd.read_csv(f'./data/{src}/BX-Book-Ratings.csv', delimiter=";", encoding="latin1")
@@ -432,8 +435,48 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
 
     # which type of pre-dataset will use
     if prepro == 'origin':
-        # if prepro == 'origin':
         pass
+        if remove_top_users > 0:
+            if remove_on == 'user':
+                unknown_item = df['item'].nunique()
+                a = df['user'].value_counts()
+                n = int(len(a) * (remove_top_users / 100))
+                users_removed = a.head(n).index
+                a.drop(a.head(n).index, inplace=True)
+                new_df = df[df['user'].isin(a.index)]
+
+                for u in users_removed:
+                    aux = df[df['user'] == u][:1].copy()
+                    # aux['item'] = unknown_item
+                    new_df = new_df.append(aux, ignore_index=True)
+
+                # IDEA: generate fake interactions with items that disapeared
+                # def do(df, new_df):
+                #     return [item for item in df['item'].unique() if not item in new_df['item'].unique()]
+                missing_items = [item for item in df['item'].unique() if not item in new_df['item'].unique()]
+                for i in missing_items:
+                    aux = df[df['item'] == i][:1].copy()
+                    # aux['user'] = 1
+                    new_df = new_df.append(aux, ignore_index=True)
+                df = new_df.copy()
+
+            elif remove_on == 'item':
+                unknown_user = 1
+                a = df['item'].value_counts()
+                n = int(len(a) * (remove_top_users / 100))
+                items_removed = a.head(n).index
+                a.drop(a.head(n).index, inplace=True)
+                new_df = df[df['item'].isin(a.index)]
+
+                for i in items_removed:
+                    aux = df[df['item'] == i][:1].copy()
+                    # aux['user'] = unknown_user
+                    new_df = new_df.append(aux, ignore_index=True)
+                df = new_df.copy()
+
+            else:
+                pass
+
     elif prepro.endswith('filter'):
         pattern = re.compile(r'\d+')
         filter_num = int(pattern.findall(prepro)[0])

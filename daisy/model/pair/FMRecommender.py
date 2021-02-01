@@ -83,24 +83,29 @@ class PairFM(nn.Module):
         self.loss_type = loss_type
         self.early_stop = early_stop
 
-    def forward(self, u, i, j, context):
+    def forward(self, u, i, j, c, inference=False):
+        pred_i = self._out(u, i, c)
+        if not inference:
+            pred_j = self._out(u, j, c)
+        else:
+            pred_j = pred_i
+
+        return pred_i, pred_j
+
+    def _out(self, u, i, context):
 
         if self.reindex:
             if context is None:
                 embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
-                embeddings_uj = self.embeddings(torch.stack((u, j), dim=1))
             else:
                 if isinstance(context, list) and len(context) > 0:
                     context = torch.stack(context, dim=1)
                     embeddings_ui = self.embeddings(torch.cat((torch.stack((u, i), dim=1), context), dim=1))
-                    embeddings_uj = self.embeddings(torch.cat((torch.stack((u, j), dim=1), context), dim=1))
                 else:
                     embeddings_ui = self.embeddings(torch.stack((u, i, context), dim=1))
-                    embeddings_uj = self.embeddings(torch.stack((u, j, context), dim=1))
-                
+
             # inner prod part
             pred_i = self.fm(embeddings_ui)
-            pred_j = self.fm(embeddings_uj)
 
             # pred_i = embeddings_ui.prod(dim=1).sum(dim=1, keepdim=True)
             # pred_j = embeddings_uj.prod(dim=1).sum(dim=1, keepdim=True)
@@ -111,19 +116,16 @@ class PairFM(nn.Module):
         else:
             user = self.embed_user(u)
             item_i = self.embed_item(i)
-            item_j = self.embed_item(j)
 
             # inner product part
             pred_i = (user * item_i).sum(dim=-1, keepdim=True)
-            pred_j = (user * item_j).sum(dim=-1, keepdim=True)
 
             # add bias
             pred_i += self.u_bias(u) + self.i_bias(i) + self.bias_
-            pred_j += self.u_bias(u) + self.i_bias(j) + self.bias_
 
-        return pred_i.view(-1), pred_j.view(-1)
+        return pred_i.view(-1)
 
     def predict(self, u, i, c):
-        pred_i, _ = self.forward(u, i, i, c)
+        pred_i, _ = self.forward(u, i, i, c, inference=True)
 
         return pred_i.cpu()
