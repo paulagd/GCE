@@ -5,6 +5,7 @@ from tqdm import tqdm
 from daisy.utils.metrics import precision_at_k, recall_at_k, off_policy_at_k, hr_at_k, ndcg_at_k, mrr_at_k
 from sklearn.model_selection import KFold, train_test_split, GroupShuffleSplit
 from IPython import embed
+from collections import defaultdict
 
 
 def get_weight_file(args, all_files):
@@ -36,17 +37,40 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         model.to(device)
         print('LOADED BEST MODEL')
 
+        if args.remove_on == 'user':
+            # remove users candidates --> can
+            keys = list(candidates.keys())
+            user_keys = [k[0] for k in keys]
+            idx_to_take = [i for i, u in enumerate(user_keys) if u not in populary_dict]
+            new_keys = [keys[idx] for idx in idx_to_take]
+
+            aux_cand = defaultdict(list)
+            for tup in new_keys:
+                aux_cand[tup] = list(candidates[tup])
+
+            # candidates = [candidates[k] for k in new_keys]
+            candidates = aux_cand
+
     model.eval()
     preds = {}
-    # for u_idx, tmp_loader in enumerate(loaders):
     for u in tqdm(candidates.keys(), disable=tune):
         # get top-N list with torch method
         for items in loaders[u]:
+            # remove items[1] in k_popular_items --> remove tambe x items[0] i x items[2]
             user_u, item_i, context = items[0], items[1], items[2]
-            user_u = user_u.to(device)
+            if args.remove_top_users > 0 and args.remove_on == 'item':
+                item_i = [item.item() for item in item_i if item not in populary_dict]
+                item_i = torch.LongTensor(item_i)
+                user_u = user_u[:len(item_i)]
+                context = context[:len(item_i)]
             item_i = item_i.to(device)
+            user_u = user_u.to(device)
             if isinstance(context, list) and args.context:
-                context = [c.to(device) for c in context]
+                if len(context) > 1:
+                    context = [c.to(device) for c in context]
+                else:
+                    context = context[0].to(device)
+                    context = context[:len(item_i)]
             else:
                 context = context.to(device) if args.context else None
             prediction = model.predict(user_u, item_i, context)
@@ -87,6 +111,8 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         if (writer and not epoch is None) and not tune:
             writer.add_scalar(f'metrics/HR_@{k}', hr_k, epoch+1)
             writer.add_scalar(f'metrics/NDCG_@{k}', ndcg_k, epoch+1)
+            if args.printall and epoch > 0:
+                print(f'{epoch}\t@{k}\t{hr_k:.4f}\t{ndcg_k:.4f}')
             # writer.add_scalar(f'metrics/Discounted_HR@{k}', off_policy_k, epoch+1)
             # print(f'HR@{k}: {hr_k:.4f}  |  NDCG@{k}: {ndcg_k:.4f}')
 
@@ -94,7 +120,7 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
         res[k] = np.array([hr_k, ndcg_k])
         if k == 10:
             tmp_pred_10 = np.array([hr_k, ndcg_k])
-        if not (writer and not epoch is None) and not tune:
+        if not (writer and not epoch is None) and not tune and not args.printall:
             if k == 10:
                 print('--------------TEST METRICS ------------')
                 print('+'*80)

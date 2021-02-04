@@ -95,6 +95,7 @@ class PairFM(nn.Module):
     def _out(self, u, i, context):
 
         if self.reindex:
+            # embed()
             if context is None:
                 embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
             else:

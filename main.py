@@ -3,7 +3,6 @@ import time
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from collections import defaultdict
 from datetime import datetime
 
 import torch
@@ -118,12 +117,16 @@ if __name__ == '__main__':
     time_log = open('time_log.txt', 'a')
     
     ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
-    df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context,
-                                                        gce_flag=args.gce, cut_down_data=args.cut_down_data,
-                                                        remove_top_users=args.remove_top_users, remove_on=args.remove_on,
-                                                        side_info=args.side_information, context_type=args.context_type,
-                                                        context_as_userfeat=args.context_as_userfeat,
-                                                        flag_run_statistics=args.statistics)
+    df, users, items, unique_original_items, popularity_dic = load_rate(args.dataset, args.prepro, binary=True,
+                                                                        context=args.context,
+                                                                        gce_flag=args.gce,
+                                                                        cut_down_data=args.cut_down_data,
+                                                                        remove_top_users=args.remove_top_users,
+                                                                        remove_on=args.remove_on,
+                                                                        side_info=args.side_information,
+                                                                        context_type=args.context_type,
+                                                                        context_as_userfeat=args.context_as_userfeat,
+                                                                        flag_run_statistics=args.statistics)
     if args.side_information and not args.dataset == 'ml-100k':
         if args.dataset in ['lastfm', 'drugs']:
             if args.context_as_userfeat:
@@ -179,21 +182,25 @@ if __name__ == '__main__':
     # train_set = pd.read_csv(f'./experiment_data/train_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     # test_set = pd.read_csv(f'./experiment_data/test_{args.dataset}_{args.prepro}_{args.test_method}.dat')
     df = pd.concat([train_set, test_set], ignore_index=True)
-    if 'array_context_flag' in df.columns:
-        # type(df.to_numpy()[0][2]) == list
-        import itertools
-        prot_list = list(itertools.chain(df['context'].values))
-        # lenghts = [len(np.unique(seq)) for seq in prot_list]
-        # context_num = int(np.max(lenghts))
-        context_num = 1
 
-        flattened_proteins = [val for sublist in prot_list for val in sublist]
-
-        dims = np.max(df[['user', 'item']].to_numpy().astype(int), axis=0) + 1
-        dims = np.append(dims, [np.max(flattened_proteins)+1])
-    else:
+    if not args.context:
         dims = np.max(df.to_numpy().astype(int), axis=0) + 1
-        context_num = int(len(dims) - 4)
+    else:
+        if 'array_context_flag' in df.columns:
+            # type(df.to_numpy()[0][2]) == list
+            import itertools
+            prot_list = list(itertools.chain(df['context'].values))
+            # lenghts = [len(np.unique(seq)) for seq in prot_list]
+            # context_num = int(np.max(lenghts))
+            context_num = 1
+
+            flattened_proteins = [val for sublist in prot_list for val in sublist]
+
+            dims = np.max(df[['user', 'item']].to_numpy().astype(int), axis=0) + 1
+            dims = np.append(dims, [np.max(flattened_proteins)+1])
+        else:
+            dims = np.max(df.to_numpy().astype(int), axis=0) + 1
+            context_num = int(len(dims) - 4)
 
     ''' GET GROUND-TRUTH AND CANDIDATES '''
     # get ground truth
@@ -506,7 +513,8 @@ if __name__ == '__main__':
             hours, rem = divmod(elapsed_time, 3600)
             minutes, seconds = divmod(rem, 60)
             _, _, _ = perform_evaluation(loaders_test, candidates_test, model, args, device, test_ur, s_time,
-                                         minutes_train=minutes, writer=None, seconds_train=seconds, desc=total_info)
+                                         minutes_train=minutes, writer=None, seconds_train=seconds, desc=total_info,
+                                         populary_dict=popularity_dic)
             exit()
 
         else:
@@ -528,6 +536,7 @@ if __name__ == '__main__':
 
     hours, rem = divmod(elapsed_time, 3600)
     minutes, seconds = divmod(rem, 60)
+    print(f'TOTAL ELAPSED TIME: {hours:.2f} hours, {minutes:.2f} min, {seconds:.4f}seconds')
 
     time_log.write(f'{args.dataset}_{args.prepro}_{args.test_method}_{args.problem_type}{args.algo_name}'
                    f'_{args.loss_type}_{args.sample_method}_GCE={args.gce},  {minutes:.2f} min, {seconds:.4f}seconds' + '\n')

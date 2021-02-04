@@ -132,14 +132,18 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
             df.rename(columns={'drug': 'user', 'disease': 'item',
                                # 'proteins_drug': 'user-feat',
                                'proteins': 'item-feat', 'side_effect': 'user-feat'}, inplace=True)
-        if context_as_userfeat:
-            df = df[['user', 'item', 'user-feat', 'item-feat']]
+
+        if not context:
+            df = df[['user', 'item']]
         else:
-            df = df[['user', 'item', 'context', 'user-feat']]
+            if context_as_userfeat:
+                df = df[['user', 'item', 'user-feat', 'item-feat']]
+            else:
+                df = df[['user', 'item', 'context', 'user-feat']]
+            df['array_context_flag'] = True
 
         df['timestamp'] = 1
         df['rating'] = 1
-        df['array_context_flag'] = True
 
     elif src == 'ml-1m':
         df = pd.read_csv(f'./data/{src}/ratings.dat', sep='::', header=None, 
@@ -436,46 +440,6 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     # which type of pre-dataset will use
     if prepro == 'origin':
         pass
-        if remove_top_users > 0:
-            if remove_on == 'user':
-                unknown_item = df['item'].nunique()
-                a = df['user'].value_counts()
-                n = int(len(a) * (remove_top_users / 100))
-                users_removed = a.head(n).index
-                a.drop(a.head(n).index, inplace=True)
-                new_df = df[df['user'].isin(a.index)]
-
-                for u in users_removed:
-                    aux = df[df['user'] == u][:1].copy()
-                    # aux['item'] = unknown_item
-                    new_df = new_df.append(aux, ignore_index=True)
-
-                # IDEA: generate fake interactions with items that disapeared
-                # def do(df, new_df):
-                #     return [item for item in df['item'].unique() if not item in new_df['item'].unique()]
-                missing_items = [item for item in df['item'].unique() if not item in new_df['item'].unique()]
-                for i in missing_items:
-                    aux = df[df['item'] == i][:1].copy()
-                    # aux['user'] = 1
-                    new_df = new_df.append(aux, ignore_index=True)
-                df = new_df.copy()
-
-            elif remove_on == 'item':
-                unknown_user = 1
-                a = df['item'].value_counts()
-                n = int(len(a) * (remove_top_users / 100))
-                items_removed = a.head(n).index
-                a.drop(a.head(n).index, inplace=True)
-                new_df = df[df['item'].isin(a.index)]
-
-                for i in items_removed:
-                    aux = df[df['item'] == i][:1].copy()
-                    # aux['user'] = unknown_user
-                    new_df = new_df.append(aux, ignore_index=True)
-                df = new_df.copy()
-
-            else:
-                pass
 
     elif prepro.endswith('filter'):
         pattern = re.compile(r'\d+')
@@ -556,7 +520,47 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     if flag_run_statistics:
         run_statistics(df, src)
         exit()
-    # ####################################################################
+    if remove_top_users > 0:
+        if remove_on == 'user':
+            a = df['user'].value_counts()
+            n = int(len(a) * (remove_top_users / 100))
+            users_2_remove = a.head(n).index
+            feat_2_remove = users_2_remove
+            # a.drop(a.head(n).index, inplace=True)
+            # new_df = df[df['user'].isin(a.index)]
+            #
+            # for u in users_removed:
+            #     aux = df[df['user'] == u][:1].copy()
+            #     # aux['item'] = unknown_item
+            #     new_df = new_df.append(aux, ignore_index=True)
+            #
+            # # IDEA: generate fake interactions with items that disapeared
+            # # def do(df, new_df):
+            # #     return [item for item in df['item'].unique() if not item in new_df['item'].unique()]
+            # missing_items = [item for item in df['item'].unique() if not item in new_df['item'].unique()]
+            # for i in missing_items:
+            #     aux = df[df['item'] == i][:1].copy()
+            #     # aux['user'] = 1
+            #     new_df = new_df.append(aux, ignore_index=True)
+            # df = new_df.copy()
+
+        elif remove_on == 'item':
+            a = df['item'].value_counts()
+            n = int(len(a) * (remove_top_users / 100))
+            items_2_remove = a.head(n).index
+            # a.drop(a.head(n).index, inplace=True)
+            # new_df = df[df['item'].isin(a.index)]
+            #
+            # for i in items_removed:
+            #     aux = df[df['item'] == i][:1].copy()
+            #     # aux['user'] = unknown_user
+            #     new_df = new_df.append(aux, ignore_index=True)
+            # df = new_df.copy()
+            feat_2_remove = items_2_remove + user_num  # REINDEX
+
+    else:
+        feat_2_remove = None
+        # ####################################################################
     # if side_info and src == 'ml-100k':
     #     si = pd.read_csv(f'./data/{src}/side-information.csv', index_col=0)
     #     si.rename(columns={'id': 'item', 'genres': 'side_info'}, inplace=True)
@@ -570,7 +574,7 @@ def load_rate(src='ml-100k', prepro='origin', binary=True, pos_threshold=None, l
     print(f'Finish loading [{src}]-[{prepro}] dataset with [context == {context}] and [GCE == {gce_flag}]')
     # embed()
     # print(df.nunique())
-    return df, user_num, item_num, unique_original_items
+    return df, user_num, item_num, unique_original_items, feat_2_remove
 
 
 def add_last_clicked_item_context(df, dataset='', random_context=False):

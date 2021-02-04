@@ -184,10 +184,12 @@ if __name__ == '__main__':
         device = "cpu"
 
     ''' LOAD DATA AND ADD CONTEXT IF NECESSARY '''
-    df, users, items, unique_original_items = load_rate(args.dataset, args.prepro, binary=True, context=args.context,
-                                                        gce_flag=args.gce, cut_down_data=args.cut_down_data,
-                                                        side_info=args.side_information, context_type=args.context_type,
-                                                        context_as_userfeat=args.context_as_userfeat)
+    df, users, items, unique_original_items, _ = load_rate(args.dataset, args.prepro, binary=True,
+                                                           context=args.context,
+                                                           gce_flag=args.gce, cut_down_data=args.cut_down_data,
+                                                           side_info=args.side_information,
+                                                           context_type=args.context_type,
+                                                           context_as_userfeat=args.context_as_userfeat)
     if args.side_information and not args.dataset == 'ml-100k':
         if args.dataset in ['lastfm', 'drugs']:
             if args.context_as_userfeat:

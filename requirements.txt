@@ -31,6 +31,7 @@ gunicorn==20.0.4
 h5py==2.9.0
 hyperopt==0.2.5
 idna==2.8
+imgkit==1.0.2
 importlib-metadata==3.0.0
 ipykernel==5.1.1
 ipython==7.5.0
