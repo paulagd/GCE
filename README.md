@@ -10,11 +10,12 @@ To get all dependencies, run:
 
 Make sure you have a **CUDA** enviroment to accelarate since these deep-learning models could be based on it. 
 
-We forked the code from [DaisyRec github](https://github.com/AmazingDD/daisyRec) which handled ranking issue mainly and split recommendation problem into point-wise ones and pair-wise ones so that different loss function are constructed such as BPR, Top-1, Hinge and Cross Entropy. We adapted their code to context-aware recommendation focusing in pair-wise problem and BPR loss. 
+We forked the code from [DaisyRec github](https://github.com/AmazingDD/daisyRec), who provide some code for fairly comparison on recommender systems. They handled ranking issue and different types of split in both point-wise and pair-wise problem recommendation. We have extended it to be adapted for context-aware recommendation problems thus focusing in pair-wise problem with time-aware-leave-one-out strategy for splitting and BPR loss as cost function.
+
 
 ## Datasets
 
-You can download experiment data, and put them into the `data` folder. You can also create `results` folder to store the results. Tensorboard logs will be created under `logs` folder automatically.
+You can download experimental data and place it into `data` folder under root project. You can also create `results` folder to store the results. Tensorboard logs will be created under `logs` folder automatically. Pre-processing of data is explained in our paper.
 
 All data are available in links below: 
 
@@ -30,9 +31,9 @@ Other data provided in the code comes from [DaisyRec github](https://github.com/
 
 | Model | Reference |
 |-------|-----------|
+| Matrix Factorization | [Baltrunas, 2011). Matrix factorization techniques for context aware recommendation.](https://www.researchgate.net/profile/Bernd-Ludwig/publication/221140971_Matrix_factorization_techniques_for_context_aware_recommendation/links/0deec52b992aa0ec52000000/Matrix-factorization-techniques-for-context-aware-recommendation.pdf) |
 | Factorization Machine | [S Rendle, Factorization Machines, 2010.](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf) |
 | Neural Collaborative Filtering | [HE, Xiangnan, et al. Neural collaborative filtering](https://arxiv.org/abs/1905.08108)
-| Wide&Deep | [HT Cheng, et al. Wide & Deep Learning for Recommender Systems, 2016.](https://arxiv.org/abs/1606.07792) |
 | Neural Factorization Machine | [X He and TS Chua, Neural Factorization Machines for Sparse Predictive Analytics, 2017.](https://arxiv.org/abs/1708.05027) |
 | DeepFM | [H Guo, et al. DeepFM: A Factorization-Machine based Neural Network for CTR Prediction, 2017.](https://arxiv.org/abs/1703.04247) |
 
