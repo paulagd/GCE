@@ -65,7 +65,7 @@ def parse_args():
                         help='pair-wise or point-wise')
     parser.add_argument('--algo_name', 
                         type=str, 
-                        default='mf',
+                        default='fm',
                         help='algorithm to choose')
     parser.add_argument('--dataset', 
                         type=str, 
@@ -147,11 +147,10 @@ def parse_args():
                         help='L2 regularization')
     parser.add_argument('--dropout', 
                         # type=float,
-                        default=0,
-                        # default=0.5,
+                        default=0.5,
                         help='dropout rate')
     parser.add_argument('--lr', 
-                        default=0.001,
+                        default=0.005,
                         help='learning rate')
     # parser.add_argument('--lr',
     #                     type=float,
@@ -166,7 +165,7 @@ def parse_args():
                         default=16,
                         help='num_workers')
     parser.add_argument('--batch_size',
-                        default=256,
+                        default=512,
                         help='batch size for training')
     # parser.add_argument('--batch_size',
     #                     type=int,
