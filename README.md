@@ -42,12 +42,12 @@ Other data provided in the code comes from [DaisyRec github](https://github.com/
 
 To reproduce the results run:
 
-    * fm-baseline:
+   * fm-baseline:
 
 	> python main.py --dataset ml-100k --algo_name fm --rankall
 
 
-    * fm-baseline with GCE: 
+   * fm-baseline with GCE: 
 
 	> python main.py --dataset ml-100k --algo_name fm --gce --rankall
 
