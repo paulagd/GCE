@@ -1,5 +1,5 @@
 import torch
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, GATConv, SGConv, SAGEConv
 from IPython import embed
 
 
@@ -44,17 +44,33 @@ class FactorizationMachine(torch.nn.Module):
 
     
 class GCE(torch.nn.Module):
-    def __init__(self, field_dims, embed_dim, features, train_mat_edges):
+    def __init__(self, field_dims, embed_dim, features, train_mat_edges, dropout=0, args=None):
 
-        super().__init__()
+        super(GCE, self).__init__()
 
         self.A = train_mat_edges
         self.features = features  # so far, Identity matrix
+        # self.field_dims = field_dims  # so far, Identity matrix
+        # self.embed_dim = embed_dim  # so far, Identity matrix
         # GCNConv applies the convolution over the graph
-        self.GCN_module = GCNConv(field_dims, embed_dim)
+
+        if args.gcetype == 'gat':
+            print('GAT!!')
+            self.GCN_module = GATConv(int(field_dims), embed_dim, concat=True, heads=args.num_heads, dropout=dropout)
+        elif args.gcetype == 'sage':
+            print('SAGE!!')
+            self.features = self.features.to_dense()  # so far, Identity matrix
+            self.GCN_module = SAGEConv(int(field_dims), embed_dim)
+        # elif args.gcetype == 'sgc':
+        #     print(f'SGC hop {args.mh}!!')
+        #     self.GCN_module = SGConv(field_dims, embed_dim, cached=True, K=args.mh)
+        else:
+            print('GCN!!')
+            self.GCN_module = GCNConv(field_dims, embed_dim, cached=True)
 
     def forward(self, x):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
+
         return self.GCN_module(self.features, self.A)[x]

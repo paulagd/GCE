@@ -22,7 +22,8 @@ class PairFM(nn.Module):
                  A=None,
                  GCE_flag=False,
                  early_stop=True,
-                 dropout=0):
+                 dropout=0,
+                 args=None):
         """
         Pair-wise FM Recommender Class
         Parameters
@@ -45,7 +46,6 @@ class PairFM(nn.Module):
 
         self.epochs = epochs
         self.lr = lr
-        self.dropout = dropout
         self.reg_1 = reg_1
         self.reg_2 = reg_2
         self.reindex = reindex
@@ -54,8 +54,8 @@ class PairFM(nn.Module):
 
         if GCE_flag:
             print('GCE EMBEDDINGS DEFINED')
-            self.embeddings = GCE(max_dim, factors, X, A) if reindex else ValueError(f'Can not use GCE with'
-                                                                                                 f'reindex=False')
+            self.embeddings = GCE(max_dim, factors, X, A, dropout=dropout, args=args)\
+                if reindex else ValueError(f'Can not use GCE with reindex=False')
         else:
             if reindex:
                 self.embeddings = nn.Embedding(max_dim, factors)

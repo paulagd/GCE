@@ -162,7 +162,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
 
         # record all tuning result and settings
         fnl_metric = [f'{mt:.4f}' for mt in fnl_metric]
-        line = ','.join(fnl_metric) + f',{best_epoch},{args.num_ng},{args.factors},{args.dropout},{args.lr},{args.batch_size},' \
+        line = ','.join(fnl_metric) + f',{best_epoch},{args.num_ng},{args.factors},{args.num_heads},{args.dropout},{args.lr},{args.batch_size},' \
             f'{args.reg_1},{args.reg_2}' + '\n'
         f.write(line)
         f.flush()

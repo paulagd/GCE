@@ -65,9 +65,10 @@ def build_evaluation_set(test_ur, total_train_ur, item_pool, candidates_num, sam
     return loaders, test_ucands
 
 
-if __name__ == '__main__':
+def main(args=None):
     ''' all parameter part '''
-    args = parse_args()
+    if args is None:
+        args = parse_args()
 
     # for visualization
     date = datetime.now().strftime('%y%m%d%H%M%S')
@@ -77,9 +78,8 @@ if __name__ == '__main__':
             random_context = "random_context" if args.random_context else ""
             context_type = args.context_type if args.dataset == 'frappe' else ""
             rankall = 'RANK_ALL' if args.rankall else ""
-            mh = f'MH={args.mh}' if args.mh > 1 else ''
             INIT = "INIT" if args.load_init_weights else ""
-            string2 = "reindexed" if args.reindex and not args.gce else "graph"
+            string2 = "reindexed" if args.reindex and not args.gce else f"graph_{args.gcetype}"
             string3 = "_UII_" if args.uii and args.context else "_UIC_"
             string = string1 + string2 + string3
             context_folder = "context" if args.context else "no_context"
@@ -224,10 +224,12 @@ if __name__ == '__main__':
     )
     neg_set, adj_mx = sampler.transform(train_set, is_training=True, context=args.context, pair_pos=None)
     if args.gce:
-        if args.mh > 1:
-            print(f'[ MULTI HOP {args.mh} ACTIVATED ]')
-            adj_mx = adj_mx.__pow__(int(args.mh))
+        # if args.mh > 1:
+        #     print(f'[ MULTI HOP {args.mh} ACTIVATED ]')
+        #     adj_mx = adj_mx.__pow__(int(args.mh))
         X = sparse_mx_to_torch_sparse_tensor(identity(adj_mx.shape[0])).to(device)
+        # X, _ = from_scipy_sparse_matrix(identity(adj_mx.shape[0]))
+        # X = X.to(device)
         if args.side_information:
             if args.dataset == 'ml-100k':
                 # X_gender = sparse_mx_to_torch_sparse_tensor(X_gender_mx).to(device)
@@ -276,6 +278,8 @@ if __name__ == '__main__':
 
     user_num = dims[0]
     max_dim = dims[2] if args.context else dims[1]
+    # X = X.to_dense()
+    
     if args.gce and args.side_information:
         # TODO: I THINK ITS LIKE THIS! UNCOMMENT
         print('GCE GOOD WAY')
@@ -402,7 +406,8 @@ if __name__ == '__main__':
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
                 gpuid=args.gpu,
-                dropout=args.dropout
+                dropout=args.dropout,
+                args=args
             )
         elif args.algo_name == 'fm':
             from daisy.model.pair.FMRecommender import PairFM
@@ -420,7 +425,8 @@ if __name__ == '__main__':
                 X=X if args.gce else None,
                 A=edge_idx if args.gce else None,
                 gpuid=args.gpu,
-                dropout=args.dropout
+                dropout=args.dropout,
+                args=args
             )
         elif args.algo_name == 'nfm':
             from daisy.model.pair.NFMRecommender import PairNFM
@@ -549,3 +555,7 @@ if __name__ == '__main__':
     #                                                      sampler, context_flag=args.context)
     # perform_evaluation(loaders_test, candidates_test, model, args, device, test_ur, s_time, minutes_train=minutes,
     #                    writer=None, seconds_train=seconds)
+
+
+if __name__ == '__main__':
+    main()

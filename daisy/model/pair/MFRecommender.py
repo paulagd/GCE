@@ -22,7 +22,8 @@ class PairMF(nn.Module):
                  A=None,
                  GCE_flag=False,
                  early_stop=True,
-                 dropout=0):
+                 dropout=0,
+                 args=None):
         """
         Point-wise MF Recommender Class
         Parameters
@@ -47,7 +48,6 @@ class PairMF(nn.Module):
         self.lr = lr
         self.reg_1 = reg_1
         self.reg_2 = reg_2
-        self.dropout = dropout
 
         self.reindex = reindex
         self.GCE_flag = GCE_flag
@@ -55,8 +55,8 @@ class PairMF(nn.Module):
 
         if GCE_flag:
             print('GCE EMBEDDINGS DEFINED')
-            self.embeddings = GCE(max_dim, factors, X, A) if reindex else ValueError(f'Can not use GCE with'
-                                                                                                 f'reindex=False')
+            self.embeddings = GCE(max_dim, factors, X, A, dropout=dropout, args=args)\
+                if reindex else ValueError(f'Can not use GCE with reindex=False')
         else:
             if reindex:
                 self.embeddings = nn.Embedding(max_dim, factors)

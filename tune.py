@@ -31,152 +31,107 @@ class Struct:
         self.__dict__.update(entries)
 
 
-def opt_func(space):
+def tune_main_function():
+    def opt_func(space):
 
-    ''' FORMAT DATA AND CHOOSE MODEL '''
-    f = space['f']
-    args = Struct(**space)
+        ''' FORMAT DATA AND CHOOSE MODEL '''
+        f = space['f']
+        args = Struct(**space)
 
-    user_num = dims[0]
-    max_dim = dims[2] if args.context else dims[1]
-    if args.gce and args.side_information:
-        # TODO: I THINK ITS LIKE THIS! UNCOMMENT
-        print('GCE GOOD WAY')
-        max_dim = X.shape[1]
-        # TODO: I THINK ITS LIKE THIS! COMMENT
-        # X = torch.transpose(X, 0, 1)
+        user_num = dims[0]
+        max_dim = dims[2] if args.context else dims[1]
+        if args.gce and args.side_information:
+            # TODO: I THINK ITS LIKE THIS! UNCOMMENT
+            print('GCE GOOD WAY')
+            max_dim = X.shape[1]
+            # TODO: I THINK ITS LIKE THIS! COMMENT
+            # X = torch.transpose(X, 0, 1)
 
-    if args.algo_name == 'mf':
-        from daisy.model.pair.MFRecommender import PairMF
+        if args.algo_name == 'mf':
+            from daisy.model.pair.MFRecommender import PairMF
 
-        model = PairMF(
-            user_num,
-            max_dim,
-            factors=args.factors,
-            epochs=args.epochs,
-            lr=args.lr,
-            reg_1=args.reg_1,
-            reg_2=args.reg_2,
-            loss_type=args.loss_type,
-            GCE_flag=args.gce,
-            reindex=args.reindex,
-            X=X if args.gce else None,
-            A=edge_idx if args.gce else None,
-            gpuid=args.gpu,
-            dropout=args.dropout
+            model = PairMF(
+                user_num,
+                max_dim,
+                factors=args.factors,
+                epochs=args.epochs,
+                lr=args.lr,
+                reg_1=args.reg_1,
+                reg_2=args.reg_2,
+                loss_type=args.loss_type,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
+                gpuid=args.gpu,
+                dropout=args.dropout,
+                args=args
+            )
+
+        elif args.algo_name == 'fm':
+            from daisy.model.pair.FMRecommender import PairFM
+
+            model = PairFM(
+                user_num,
+                max_dim,
+                factors=args.factors,
+                epochs=args.epochs,
+                lr=args.lr,
+                reg_1=args.reg_1,
+                reg_2=args.reg_2,
+                loss_type=args.loss_type,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
+                gpuid=args.gpu,
+                dropout=args.dropout,
+                args=args
+            )
+        elif args.algo_name == 'ncf':
+            # layers = [len(dims[:-2]) * 32, 32, 16, 8] if not args.context else [len(dims[:-2]) * 32, 32, 16, 8]
+            # args.factors = layers[1]
+            from daisy.model.pair.NCFRecommender import PairNCF
+            model = PairNCF(
+                user_num,
+                max_dim,
+                args.factors,
+                num_layers=3,
+                GCE_flag=args.gce,
+                reindex=args.reindex,
+                X=X if args.gce else None,
+                A=edge_idx if args.gce else None,
+                gpuid=args.gpu,
+                mf=args.mf,
+                dropout=args.dropout,
+                num_context=context_num
+            )
+        else:
+            raise ValueError('Invalid algorithm name')
+
+        ''' BUILD RECOMMENDER PIPELINE '''
+
+        train_loader = data.DataLoader(
+            train_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=args.num_workers
         )
-
-    elif args.algo_name == 'fm':
-        from daisy.model.pair.FMRecommender import PairFM
-
-        model = PairFM(
-            user_num,
-            max_dim,
-            factors=args.factors,
-            epochs=args.epochs,
-            lr=args.lr,
-            reg_1=args.reg_1,
-            reg_2=args.reg_2,
-            loss_type=args.loss_type,
-            GCE_flag=args.gce,
-            reindex=args.reindex,
-            X=X if args.gce else None,
-            A=edge_idx if args.gce else None,
-            gpuid=args.gpu,
-            dropout=args.dropout
-        )
-    elif args.algo_name == 'nfm':
-        from daisy.model.pair.NFMRecommender import PairNFM
-
-        model = PairNFM(
-            user_num,
-            max_dim,
-            factors=args.factors,
-            act_function=args.act_func,
-            num_layers=args.num_layers,
-            batch_norm=args.no_batch_norm,
-            dropout=args.dropout,
-            epochs=args.epochs,
-            lr=args.lr,
-            reg_1=args.reg_1,
-            reg_2=args.reg_2,
-            loss_type=args.loss_type,
-            GCE_flag=args.gce,
-            reindex=args.reindex,
-            X=X if args.gce else None,
-            A=edge_idx if args.gce else None,
-            gpuid=args.gpu,
-            mf=args.mf
-        )
-    elif args.algo_name == 'ncf':
-        # layers = [len(dims[:-2]) * 32, 32, 16, 8] if not args.context else [len(dims[:-2]) * 32, 32, 16, 8]
-        # args.factors = layers[1]
-        from daisy.model.pair.NCFRecommender import PairNCF
-        model = PairNCF(
-            user_num,
-            max_dim,
-            args.factors,
-            num_layers=3,
-            GCE_flag=args.gce,
-            reindex=args.reindex,
-            X=X if args.gce else None,
-            A=edge_idx if args.gce else None,
-            gpuid=args.gpu,
-            mf=args.mf,
-            dropout=args.dropout,
-            num_context=context_num
-        )
-    elif args.algo_name == 'deepfm':
-        from daisy.model.pair.DeepFMRecommender import PairDeepFM
-
-        model = PairDeepFM(
-            user_num,
-            max_dim,
-            factors=args.factors,
-            act_activation=args.act_func,
-            num_layers=args.num_layers,
-            batch_norm=args.no_batch_norm,
-            dropout=args.dropout,
-            epochs=args.epochs,
-            lr=args.lr,
-            reg_1=args.reg_1,
-            reg_2=args.reg_2,
-            loss_type=args.loss_type,
-            GCE_flag=args.gce,
-            reindex=args.reindex,
-            context_flag=args.context,
-            X=X if args.gce else None,
-            A=edge_idx if args.gce else None,
-            gpuid=args.gpu,
-        )
-    else:
-        raise ValueError('Invalid algorithm name')
-
-    ''' BUILD RECOMMENDER PIPELINE '''
-
-    train_loader = data.DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers
-    )
-    loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num, sampler,
-                                               context_flag=args.context, tune=args.tune)
-    try:
-        score = train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, tune=args.tune, f=f)
-    except:
-        score = -1
-    return score
-
-
-if __name__ == '__main__':
+        loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num, sampler,
+                                                   context_flag=args.context, tune=args.tune)
+        try:
+            score = train(args, model, train_loader, device, args.context, loaders, candidates, val_ur, tune=args.tune,
+                          f=f)
+        except:
+            score = -1
+        return score
 
     ''' all parameter part '''
     ####################################
     # TODO: convert in function to stop copying code from main.py
     ####################################
     args = parse_args()
-    seed = 1234
+    seed = args.seed
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
         device = "cuda"
@@ -335,16 +290,16 @@ if __name__ == '__main__':
     tune_log_path = 'tune_logs'
     os.makedirs(tune_log_path, exist_ok=True)
     # max_evals = 10 if args.dataset == 'ml-1m' else 50
-    max_evals = 10
+    max_evals = args.max_evals
     string = 'NOCONTEXT' if not args.context else ''
     mh = f'MH={args.mh}' if args.mh >1 else ''
     string2 = 'UII' if args.uii else 'UIC'
     si_str = 'SINFO' if args.side_information else ''
     context_type = args.context_type if args.dataset == 'frappe' else ""
-    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_{context_type}_{string}_{string2}_GCE={args.gce}_{mh}_{si_str}_'
+    f = open(tune_log_path + "/" + f'{args.loss_type}_{args.algo_name}_{context_type}_{string}_{string2}_GCE={args.gce}_{args.gcetype}_{si_str}_'
     f'{args.dataset}_{args.prepro}_{args.val_method}_context_as_userfeat={args.context_as_userfeat}_max_evals={max_evals}.csv',
              'w', encoding='utf-8')
-    f.write('HR, NDCG, best_epoch, num_ng, factors, dropout, lr, batch_size, reg_1, reg_2' + '\n')
+    f.write('HR, NDCG, best_epoch, num_ng, factors, num_heads, dropout, lr, batch_size, reg_1, reg_2' + '\n')
     f.flush()
 
     # param_limit = param_extract(args)
@@ -354,11 +309,17 @@ if __name__ == '__main__':
 
     lr_range = [0.0001, 0.0005, 0.001, 0.005, 0.01]
     batch_size_range = [256, 512, 1024, 2048]
-    do_range = [0, 0.15, 0.5]
+    do_range = [0, 0.15, 0.5, 0.6]
+    if args_dict['gcetype'] == 'gat':
+        num_heads_range = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    else:
+        num_heads_range = [1]
 
     args_dict['lr'] = hp.choice('lr', lr_range)
     args_dict['batch_size'] = hp.choice('batch_size', batch_size_range)
     args_dict['dropout'] = hp.choice('dropout', do_range)
+    args_dict['num_heads'] = hp.choice('num_heads', num_heads_range)
+
     args_dict['epochs'] = args_dict['tune_epochs']
     args_dict['f'] = f
     args_dict['tune'] = True
@@ -377,23 +338,26 @@ if __name__ == '__main__':
     print("lr = " + str(lr_range[best['lr']]))
     print("batch_size = " + str(batch_size_range[best['batch_size']]))
     print("dropout = " + str(do_range[best['dropout']]))
+    print("num_heads = " + str(num_heads_range[best['num_heads']]))
     # lr_range[best['lr']]
     best_options = space_eval(space, trials.argmin)
 
     f.write('BEST ITERATION PARAMS' + '\n')
-    f.write(f"-, -, -, {best_options['num_ng']}, {best_options['factors']}, {best_options['dropout']},"
-            f"+ {best_options['lr']}, {best_options['batch_size']}, {best_options['reg_1']}, {best_options['reg_2']}" + '\n')
+    f.write(f"-, -, -, {best_options['num_ng']}, {best_options['factors']}, {best_options['num_heads']}, {best_options['dropout']},"
+            f"+ {best_options['lr']},{best_options['batch_size']}, {best_options['reg_1']}, {best_options['reg_2']}" + '\n')
     f.flush()
     f.close()
+    return best_options
 
-    # def hyperopt_bug():
-    #     space = defaultdict(dict)
-    #     space["a"]["aa"] = hp.choice("aa", [1])
-    #     space["a"]["aaa"] = hp.uniform("aaa", 1, 100)
-    #
-    #     space["b"]["bb"] = hp.choice("bb", [1])
-    #     space["b"]["bbb"] = hp.uniform("bbb", 1, 100)
-    #
-    #     func = lambda r: r["a"]["aa"] + r["a"]["aaa"] + r["b"]["bb"] + r["b"]["bbb"]
-    #     trials = Trials()
-    #     best = fmin(func, space, trials=trials, algo=tpe.suggest, max_evals=120)
+
+if __name__ == '__main__':
+
+    best_options = tune_main_function()
+    from main import *
+    args = parse_args()
+    args.lr = best_options['lr']
+    args.batch_size = best_options['batch_size']
+    args.dropout = best_options['dropout']
+    args.num_heads = best_options['num_heads']
+
+    main(args)
