@@ -64,11 +64,12 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
             pbar.set_description(f'[Epoch {epoch:03d}]')
 
         model.train()
+        embed()
+
         for i, (user, item_i, context, item_j, label) in enumerate(pbar):
             user = user.to(device)
             item_i = item_i.to(device)
             item_j = item_j.to(device)
-            # embed()
             if isinstance(context, list) and context_flag:
                 context = [c.to(device) for c in context]
             else:

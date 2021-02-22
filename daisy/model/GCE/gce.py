@@ -1,5 +1,5 @@
 import torch
-from torch_geometric.nn import GCNConv, GATConv, SGConv, SAGEConv
+from torch_geometric.nn import GCNConv, GATConv, SGConv, SAGEConv, ClusterGCNConv
 from IPython import embed
 
 
@@ -61,9 +61,12 @@ class GCE(torch.nn.Module):
             print('SAGE!!')
             self.features = self.features.to_dense()  # so far, Identity matrix
             self.GCN_module = SAGEConv(int(field_dims), embed_dim)
-        # elif args.gcetype == 'sgc':
-        #     print(f'SGC hop {args.mh}!!')
-        #     self.GCN_module = SGConv(field_dims, embed_dim, cached=True, K=args.mh)
+        elif args.gcetype == 'cluster':
+            print(f'ClusterGCN !!')
+            self.features = self.features.to_dense()  # so far, Identity matrix
+            # print(f'SGC hop {args.mh}!!')
+            # self.GCN_module = SGConv(field_dims, embed_dim, cached=True, K=args.mh)
+            self.GCN_module = ClusterGCNConv(int(field_dims), embed_dim)
         else:
             print('GCN!!')
             self.GCN_module = GCNConv(field_dims, embed_dim, cached=True)
@@ -72,5 +75,10 @@ class GCE(torch.nn.Module):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
+        # a = GCNConv(4308, 64)
+        # a(self.features, self.A)
+        # from torch_geometric.utils import dense_to_sparse
+        # dense_to_sparse(self.features)
 
+        #return self.GCN_module(self.features[x], self.A)
         return self.GCN_module(self.features, self.A)[x]

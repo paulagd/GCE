@@ -70,6 +70,9 @@ def main(args=None):
     if args is None:
         args = parse_args()
 
+    # if args.algo_name == 'ngcf':
+    #     args.gce = True
+
     # for visualization
     date = datetime.now().strftime('%y%m%d%H%M%S')
     if args.logs:
@@ -427,6 +430,17 @@ def main(args=None):
                 gpuid=args.gpu,
                 dropout=args.dropout,
                 args=args
+            )
+        elif args.algo_name == 'ngcf':
+            from daisy.model.pair.NGCF import PairNGCF
+            model = PairNGCF(
+                n_users=user_num,
+                n_items=max_dim,
+                embed_size=args.factors,
+                adj_matrix=adj_mx,
+                device=device,
+                reindex=args.reindex,
+                n_layers=2
             )
         elif args.algo_name == 'nfm':
             from daisy.model.pair.NFMRecommender import PairNFM

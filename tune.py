@@ -88,6 +88,17 @@ def tune_main_function():
                 dropout=args.dropout,
                 args=args
             )
+        elif args.algo_name == 'ngcf':
+            from daisy.model.pair.NGCF import PairNGCF
+            model = PairNGCF(
+                n_users=user_num,
+                n_items=max_dim,
+                embed_size=args.factors,
+                adj_matrix=adj_mx,
+                device=device,
+                reindex=args.reindex,
+                n_layers=2
+            )
         elif args.algo_name == 'ncf':
             # layers = [len(dims[:-2]) * 32, 32, 16, 8] if not args.context else [len(dims[:-2]) * 32, 32, 16, 8]
             # args.factors = layers[1]
@@ -311,7 +322,7 @@ def tune_main_function():
     batch_size_range = [256, 512, 1024, 2048]
     do_range = [0, 0.15, 0.5, 0.6]
     if args_dict['gcetype'] == 'gat':
-        num_heads_range = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        num_heads_range = [1, 2, 3, 4, 5, 6]
     else:
         num_heads_range = [1]
 

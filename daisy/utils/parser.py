@@ -10,7 +10,7 @@ def parse_args():
     parser.add_argument('--tune_epochs', type=int, default=100, help='tuning epochs')
     parser.add_argument('--remove_top_users', type=int, default=0, help='% of top users to remove')
     parser.add_argument('--remove_on', type=str, default='item', help='apply remove top_users on item/user')
-    parser.add_argument('--gcetype', type=str, default='gce', help='choose in [gce, gat, sgc, sage]')
+    parser.add_argument('--gcetype', type=str, default='gce', help='choose in [gce, gat, sgc, sage, cluster]')
     parser.add_argument("--logs", action="store_false", default=True, help="Enables logs")
     parser.add_argument("--rankall", action="store_true", default=False, help="Enables rank between all items")
     parser.add_argument("--statistics", action="store_true", default=False, help="Enables statistics dataset")
