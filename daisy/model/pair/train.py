@@ -40,8 +40,10 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
 
     res, writer, _ = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer, epoch=0,
                                         tune=tune, populary_dict=None)
-    # best_hr = res[10][0]
+    best_hr = res[10][0]
     best_ndcg = res[10][1]
+    best_hr_20 = res[20][1]
+    best_ndcg_20 = res[20][1]
     early_stopping_counter = 0
     stop = False
     best_epoch = 0
@@ -64,17 +66,21 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
             pbar.set_description(f'[Epoch {epoch:03d}]')
 
         model.train()
-        embed()
 
         for i, (user, item_i, context, item_j, label) in enumerate(pbar):
-            user = user.to(device)
-            item_i = item_i.to(device)
-            item_j = item_j.to(device)
-            if isinstance(context, list) and context_flag:
-                context = [c.to(device) for c in context]
+            user = torch.LongTensor(user).to(device)
+            item_i = torch.LongTensor(item_i).to(device)
+            item_j = torch.LongTensor(item_j).to(device)
+            # if isinstance(context, list) and context_flag:
+            if context_flag:
+                context = list(context)
+                if isinstance(context[0], list):
+                    context = [torch.LongTensor(c).to(device) for c in context]
+                else:
+                    context = torch.LongTensor(context).to(device)
             else:
-                context = context.to(device) if context_flag else None
-            label = label.to(device)
+                context = None
+            label = torch.LongTensor(label).to(device)
             # context = context.to(device) if context_flag else None
 
             model.zero_grad()
@@ -109,7 +115,7 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
 
             if not tune:
                 pbar.set_postfix(loss=loss.item())
-            if not writer is None:
+            if writer is not None:
                 writer.add_scalar('loss/train', loss.item(), epoch * len(train_loader) + i)
 
         res, writer, tmp_pred_10 = perform_evaluation(loaders, candidates, model, args, device, val_ur, writer=writer,
@@ -177,6 +183,6 @@ def train(args, model, train_loader, device, context_flag, loaders, candidates, 
         print(f'NDCG@20: {best_ndcg_20:.4f}')
         # print(f'Discounted_HR@10: {best_disc_hr:.4f}')
         name = f'best_epoch={best_epoch}_{desc}.pkl'
-        torch.save(best_checkpoint, os.path.join(filename_weights, name))
+        # torch.save(best_checkpoint, os.path.join(filename_weights, name))
 
 

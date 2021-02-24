@@ -92,12 +92,14 @@ def tune_main_function():
             from daisy.model.pair.NGCF import PairNGCF
             model = PairNGCF(
                 n_users=user_num,
-                n_items=max_dim,
-                embed_size=args.factors,
-                adj_matrix=adj_mx,
+                max_dim=max_dim,
+                emb_dim=args.factors,
+                adj_mtx=adj_mx,
                 device=device,
                 reindex=args.reindex,
-                n_layers=2
+                layers=[64, 64],
+                node_dropout=args.dropout,
+                mess_dropout=0
             )
         elif args.algo_name == 'ncf':
             # layers = [len(dims[:-2]) * 32, 32, 16, 8] if not args.context else [len(dims[:-2]) * 32, 32, 16, 8]
@@ -122,12 +124,26 @@ def tune_main_function():
 
         ''' BUILD RECOMMENDER PIPELINE '''
 
+        # train_loader = data.DataLoader(
+        #     train_dataset,
+        #     batch_size=args.batch_size,
+        #     shuffle=True,
+        #     num_workers=args.num_workers
+        # )
+
+        def collate_fn(batch):
+            return list(zip(*batch))
+
+        ''' BUILD RECOMMENDER PIPELINE '''
         train_loader = data.DataLoader(
             train_dataset,
-            batch_size=args.batch_size,
+            batch_size=int(args.batch_size),
             shuffle=True,
-            num_workers=args.num_workers
+            num_workers=args.num_workers,
+            # collate_fn=lambda x: x
+            collate_fn=collate_fn
         )
+
         loaders, candidates = build_evaluation_set(val_ur, total_train_ur, item_pool, candidates_num, sampler,
                                                    context_flag=args.context, tune=args.tune)
         try:

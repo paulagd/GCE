@@ -95,13 +95,18 @@ class PairFM(nn.Module):
     def _out(self, u, i, context):
 
         if self.reindex:
-            # embed()
             if context is None:
                 embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
             else:
                 if isinstance(context, list) and len(context) > 0:
-                    context = torch.stack(context, dim=1)
-                    embeddings_ui = self.embeddings(torch.cat((torch.stack((u, i), dim=1), context), dim=1))
+                    # context = torch.stack(c, dim=1)
+                    context_embedding = []
+                    for c in context:
+                        context_embedding.append(torch.mean(self.embeddings(c), dim=0))
+                    context_embedding = torch.stack(context_embedding).unsqueeze(dim=1)
+                    embeddings_ui = self.embeddings(torch.stack((u, i), dim=1))
+                    embeddings_ui = torch.cat((embeddings_ui, context_embedding), dim=1)
+                    # embeddings_ui = self.embeddings(torch.cat((torch.stack((u, i), dim=1), context), dim=1))
                 else:
                     embeddings_ui = self.embeddings(torch.stack((u, i, context), dim=1))
 

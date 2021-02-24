@@ -65,14 +65,20 @@ def perform_evaluation(loaders, candidates, model, args, device, test_ur, s_time
                 context = context[:len(item_i)]
             item_i = item_i.to(device)
             user_u = user_u.to(device)
-            if isinstance(context, list) and args.context:
-                if len(context) > 1:
-                    context = [c.to(device) for c in context]
+            if args.context:
+                if isinstance(context, list):
+                    if len(context) > 1:
+                        context = torch.stack(context, dim=1)
+                        context = [torch.LongTensor(c).to(device) for c in context]
+                    else:
+                        # context = torch.LongTensor(context).to(device)
+                        context = context[0].to(device)
+                        # context = context[:len(item_i)]
                 else:
-                    context = context[0].to(device)
-                    context = context[:len(item_i)]
+                    context = context.to(device)
             else:
-                context = context.to(device) if args.context else None
+                context = None
+
             prediction = model.predict(user_u, item_i, context)
             _, indices = torch.topk(prediction, args.topk)
             top_n = torch.take(torch.tensor(candidates[u]), indices).cpu().numpy()
